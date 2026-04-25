@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>上市公司市值管理工具包 — EMO · 企业家管理办公室</title>
+  <style>
+    /* ─── Reset & Base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --gold:      #C9A84C;
+      --gold-lt:   #E8C97A;
+      --gold-dim:  #8A6E30;
+      --navy:      #0B1120;
+      --navy-mid:  #111C30;
+      --navy-card: #152240;
+      --navy-line: #1E2F50;
+      --text-pri:  #EAE6DC;
+      --text-sec:  #9AABC4;
+      --text-mute: #5E7090;
+      --accent-teal: #2BBFAB;
+      --accent-blue: #4A90D9;
+      --sidebar-w: 248px;
+      --header-h:  64px;
+      --radius:    8px;
+      --transition: 0.22s ease;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", -apple-system, sans-serif;
+      background: var(--navy);
+      color: var(--text-pri);
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--navy-mid); }
+    ::-webkit-scrollbar-thumb { background: var(--navy-line); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+
+    /* ─── Header ─── */
+    .header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: var(--header-h);
+      background: var(--navy-mid);
+      border-bottom: 1px solid var(--navy-line);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px 0 calc(var(--sidebar-w) + 28px);
+      backdrop-filter: blur(8px);
+    }
+    .header-brand {
+      display: flex; align-items: center; gap: 12px;
+      position: absolute; left: 0; width: var(--sidebar-w);
+      padding: 0 24px;
+    }
+    .header-logo {
+      width: 34px; height: 34px;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 800; color: var(--navy);
+      letter-spacing: -1px; flex-shrink: 0;
+    }
+    .header-brand-text { line-height: 1.2; }
+    .header-brand-text .name { font-size: 13px; font-weight: 700; color: var(--gold); letter-spacing: 1px; }
+    .header-brand-text .sub  { font-size: 10px; color: var(--text-mute); letter-spacing: 0.5px; }
+
+    .header-title {
+      font-size: 15px; font-weight: 600; color: var(--text-pri); letter-spacing: 0.5px;
+    }
+    .header-meta {
+      display: flex; align-items: center; gap: 20px;
+    }
+    .header-badge {
+      font-size: 11px; color: var(--gold); background: rgba(201,168,76,0.12);
+      border: 1px solid rgba(201,168,76,0.3);
+      padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;
+    }
+    .header-date { font-size: 11px; color: var(--text-mute); }
+
+    /* ─── Sidebar ─── */
+    .sidebar {
+      position: fixed; top: var(--header-h); left: 0; bottom: 0;
+      width: var(--sidebar-w);
+      background: var(--navy-mid);
+      border-right: 1px solid var(--navy-line);
+      overflow-y: auto; padding: 20px 0 40px;
+      z-index: 50;
+    }
+    .sidebar-section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 2px;
+      color: var(--text-mute); text-transform: uppercase;
+      padding: 18px 20px 8px; user-select: none;
+    }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 20px; cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all var(--transition);
+      text-decoration: none;
+    }
+    .sidebar-item:hover { background: rgba(201,168,76,0.06); }
+    .sidebar-item.active {
+      border-left-color: var(--gold);
+      background: rgba(201,168,76,0.1);
+    }
+    .sidebar-icon {
+      width: 28px; height: 28px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0;
+      background: rgba(255,255,255,0.05);
+      transition: background var(--transition);
+    }
+    .sidebar-item.active .sidebar-icon { background: rgba(201,168,76,0.2); }
+    .sidebar-text { flex: 1; min-width: 0; }
+    .sidebar-text .label { font-size: 13px; font-weight: 500; color: var(--text-pri); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-item.active .sidebar-text .label { color: var(--gold); }
+    .sidebar-text .meta  { font-size: 10px; color: var(--text-mute); margin-top: 1px; }
+
+    .sidebar-divider { height: 1px; background: var(--navy-line); margin: 12px 16px; }
+
+    /* ─── Main Content ─── */
+    .main {
+      margin-left: var(--sidebar-w);
+      margin-top: var(--header-h);
+      min-height: calc(100vh - var(--header-h));
+      padding: 40px 48px 80px;
+    }
+
+    /* ─── Page (sections) ─── */
+    .page { display: none; animation: fadeSlide 0.3s ease; }
+    .page.active { display: block; }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Section Header ─── */
+    .section-header { margin-bottom: 36px; }
+    .section-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 12px;
+    }
+    .section-tag::before { content: ''; display: block; width: 20px; height: 2px; background: var(--gold); }
+    .section-title {
+      font-size: 28px; font-weight: 700; color: var(--text-pri); line-height: 1.3;
+      margin-bottom: 8px;
+    }
+    .section-subtitle {
+      font-size: 14px; color: var(--text-sec);
+      border-left: 3px solid var(--gold-dim); padding-left: 12px;
+    }
+    .section-desc {
+      font-size: 13.5px; color: var(--text-sec); margin-top: 16px;
+      max-width: 680px; line-height: 1.8;
+    }
+
+    /* ─── Overview Cards (首页) ─── */
+    .overview-hero {
+      background: linear-gradient(135deg, var(--navy-card) 0%, rgba(30,47,80,0.6) 100%);
+      border: 1px solid var(--navy-line);
+      border-radius: var(--radius); padding: 40px 48px; margin-bottom: 40px;
+      position: relative; overflow: hidden;
+    }
+    .overview-hero::before {
+      content: ''; position: absolute; top: -60px; right: -60px;
+      width: 200px; height: 200px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(201,168,76,0.08) 0%, transparent 70%);
+    }
+    .overview-hero-title { font-size: 32px; font-weight: 800; color: var(--text-pri); margin-bottom: 12px; }
+    .overview-hero-title span { color: var(--gold); }
+    .overview-hero-sub  { font-size: 14px; color: var(--text-sec); max-width: 600px; line-height: 1.9; }
+
+    .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
+    .kpi-card {
+      background: var(--navy-card); border: 1px solid var(--navy-line); border-radius: var(--radius);
+      padding: 28px 24px; position: relative; overflow: hidden;
+      transition: border-color var(--transition), transform var(--transition);
+      cursor: default;
+    }
+    .kpi-card:hover { border-color: var(--gold-dim); transform: translateY(-2px); }
+    .kpi-card::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--gold), transparent);
+      opacity: 0; transition: opacity var(--transition);
+    }
+    .kpi-card:hover::after { opacity: 1; }
+    .kpi-icon { font-size: 24px; margin-bottom: 16px; }
+    .kpi-num  { font-size: 36px; font-weight: 800; color: var(--gold); line-height: 1; margin-bottom: 8px; }
+    .kpi-label { font-size: 13px; font-weight: 600; color: var(--text-pri); margin-bottom: 4px; }
+    .kpi-desc  { font-size: 11.5px; color: var(--text-mute); line-height: 1.5; }
+
+    /* ─── Lifecycle Timeline ─── */
+    .timeline-wrap { margin-bottom: 40px; }
+    .timeline-title { font-size: 13px; font-weight: 700; color: var(--text-sec); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 20px; }
+    .timeline {
+      display: flex; align-items: stretch; gap: 0;
+      background: var(--navy-card); border: 1px solid var(--navy-line);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .tl-phase {
+      flex: 1; padding: 22px 20px; position: relative; cursor: pointer;
+      transition: background var(--transition);
+      border-right: 1px solid var(--navy-line);
+    }
+    .tl-phase:last-child { border-right: none; }
+    .tl-phase:hover { background: rgba(201,168,76,0.06); }
+    .tl-arrow {
+      position: absolute; right: -14px; top: 50%; transform: translateY(-50%);
+      width: 0; height: 0; z-index: 2;
+      border-top: 14px solid transparent;
+      border-bottom: 14px solid transparent;
+      border-left: 14px solid var(--navy-line);
+    }
+    .tl-phase:last-child .tl-arrow { display: none; }
+    .tl-num  { font-size: 10px; font-weight: 700; color: var(--gold); letter-spacing: 1px; margin-bottom: 6px; }
+    .tl-name { font-size: 13px; font-weight: 700; color: var(--text-pri); margin-bottom: 4px; }
+    .tl-sub  { font-size: 11px; color: var(--text-mute); }
+
+    /* ─── Module Grid (overview nav cards) ─── */
+    .module-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .module-nav-card {
+      background: var(--navy-card); border: 1px solid var(--navy-line);
+      border-radius: var(--radius); padding: 28px 28px 24px;
+      cursor: pointer; transition: all var(--transition);
+      position: relative; overflow: hidden;
+      text-align: left;
+    }
+    .module-nav-card:hover {
+      border-color: var(--gold-dim);
+      background: rgba(21,34,64,0.9);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+    }
+    .module-nav-card .card-num {
+      font-size: 48px; font-weight: 900; color: rgba(201,168,76,0.08);
+      position: absolute; top: 16px; right: 20px; line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .module-nav-card .card-icon { font-size: 22px; margin-bottom: 14px; }
+    .module-nav-card .card-title { font-size: 16px; font-weight: 700; color: var(--text-pri); margin-bottom: 6px; }
+    .module-nav-card .card-sub   { font-size: 12px; color: var(--text-mute); margin-bottom: 14px; line-height: 1.6; }
+    .module-nav-card .card-tags  { display: flex; flex-wrap: wrap; gap: 6px; }
+    .card-tag {
+      font-size: 10.5px; padding: 2px 8px; border-radius: 4px;
+      background: rgba(255,255,255,0.05); color: var(--text-mute);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .module-nav-card:hover .card-tag { border-color: rgba(201,168,76,0.2); }
+    .card-arrow { font-size: 18px; color: var(--gold-dim); margin-top: 16px; transition: transform var(--transition); }
+    .module-nav-card:hover .card-arrow { transform: translateX(4px); color: var(--gold); }
+
+    /* ─── Module Detail Page ─── */
+    .module-header {
+      display: flex; align-items: flex-start; gap: 20px;
+      background: var(--navy-card); border: 1px solid var(--navy-line);
+      border-radius: var(--radius); padding: 32px 36px; margin-bottom: 32px;
+    }
+    .module-header-icon {
+      width: 56px; height: 56px; border-radius: 12px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 26px;
+      background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.2);
+    }
+    .module-header-body { flex: 1; }
+    .module-header-tag  { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--gold); margin-bottom: 8px; }
+    .module-header-title { font-size: 22px; font-weight: 800; color: var(--text-pri); margin-bottom: 6px; }
+    .module-header-sub   { font-size: 13px; color: var(--text-sec); margin-bottom: 12px; }
+    .module-header-desc  { font-size: 13px; color: var(--text-mute); line-height: 1.8; }
+
+    /* ─── Sub-module Panels ─── */
+    .submodule-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 32px; }
+    .submodule-panel {
+      background: var(--navy-card); border: 1px solid var(--navy-line);
+      border-radius: var(--radius); padding: 28px 28px 24px;
+      transition: border-color var(--transition);
+    }
+    .submodule-panel:hover { border-color: var(--gold-dim); }
+    .submodule-name {
+      font-size: 15px; font-weight: 700; color: var(--text-pri); margin-bottom: 8px;
+      padding-bottom: 12px; border-bottom: 1px solid var(--navy-line);
+    }
+    .submodule-value {
+      font-size: 12px; color: var(--gold); margin-bottom: 16px; margin-top: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .submodule-value::before { content: '◆'; font-size: 8px; }
+    .submodule-list { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+    .submodule-list li {
+      font-size: 13px; color: var(--text-sec); padding-left: 16px; position: relative; line-height: 1.6;
+    }
+    .submodule-list li::before {
+      content: ''; position: absolute; left: 0; top: 9px;
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--gold-dim);
+    }
+
+    /* ─── Advantage Page ─── */
+    .advantage-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 32px; }
+    .advantage-card {
+      background: var(--navy-card); border: 1px solid var(--navy-line);
+      border-radius: var(--radius); padding: 28px;
+      transition: border-color var(--transition);
+    }
+    .advantage-card:hover { border-color: var(--gold-dim); }
+    .advantage-card-title {
+      font-size: 14px; font-weight: 700; color: var(--text-pri);
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .adv-icon { font-size: 18px; }
+    .advantage-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .advantage-list li {
+      font-size: 13px; color: var(--text-sec); display: flex; gap: 10px; align-items: flex-start;
+    }
+    .adv-bullet { color: var(--gold); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+    /* ─── Comparison Table ─── */
+    .compare-table-wrap { margin-bottom: 32px; }
+    .compare-table-title { font-size: 13px; font-weight: 700; color: var(--text-sec); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+    .compare-table {
+      width: 100%; border-collapse: collapse;
+      background: var(--navy-card); border-radius: var(--radius); overflow: hidden;
+      border: 1px solid var(--navy-line);
+    }
+    .compare-table th {
+      background: rgba(201,168,76,0.1); color: var(--gold);
+      font-size: 11.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+      padding: 14px 20px; text-align: left; border-bottom: 1px solid var(--navy-line);
+    }
+    .compare-table td {
+      padding: 13px 20px; font-size: 13px; color: var(--text-sec);
+      border-bottom: 1px solid rgba(30,47,80,0.8);
+      vertical-align: middle;
+    }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table tr:hover td { background: rgba(201,168,76,0.03); color: var(--text-pri); }
+    .compare-table td:first-child { color: var(--text-pri); font-weight: 600; }
+
+    /* ─── Footer ─── */
+    .footer {
+      margin-left: var(--sidebar-w);
+      background: var(--navy-mid); border-top: 1px solid var(--navy-line);
+      padding: 20px 48px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .footer-left  { font-size: 12px; color: var(--text-mute); }
+    .footer-left span { color: var(--gold); font-weight: 600; }
+    .footer-right { font-size: 11px; color: var(--text-mute); letter-spacing: 0.5px; }
+
+    /* ─── Breadcrumb ─── */
+    .breadcrumb {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--text-mute); margin-bottom: 28px;
+    }
+    .breadcrumb span { color: var(--gold-dim); }
+    .breadcrumb .current { color: var(--text-sec); }
+
+    /* ─── Tooltip / Status Badge ─── */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10.5px; font-weight: 600; letter-spacing: 0.5px;
+      padding: 3px 10px; border-radius: 20px;
+    }
+    .status-demo { color: #F59E0B; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+    .status-dot  { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ─── Capital Module Tab System ─── */
+    .cap-hero {
+      background: linear-gradient(135deg, var(--navy-card) 0%, rgba(21,34,64,0.8) 100%);
+      border: 1px solid var(--navy-line); border-radius: var(--radius);
+      padding: 32px 36px; margin-bottom: 28px; position: relative; overflow: hidden;
+    }
+    .cap-hero::after {
+      content: ''; position: absolute; right: -40px; top: -40px;
+      width: 180px; height: 180px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(74,144,217,0.08) 0%, transparent 70%);
+    }
+    .cap-hero-tag   { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--accent-blue); margin-bottom: 10px; }
+    .cap-hero-title { font-size: 22px; font-weight: 800; color: var(--text-pri); margin-bottom: 8px; }
+    .cap-hero-sub   { font-size: 13px; color: var(--text-sec); line-height: 1.8; max-width: 640px; }
+    .cap-kpi-row    { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 24px; }
+    .cap-kpi {
+      background: rgba(255,255,255,0.04); border: 1px solid var(--navy-line);
+      border-radius: 6px; padding: 14px 16px;
+    }
+    .cap-kpi-num   { font-size: 22px; font-weight: 800; color: var(--accent-blue); line-height: 1; margin-bottom: 4px; }
+    .cap-kpi-label { font-size: 11px; color: var(--text-mute); }
+
+    /* Tab Nav */
+    .tab-nav {
+      display: flex; gap: 0; margin-bottom: 28px;
+      background: var(--navy-mid); border: 1px solid var(--navy-line);
+      border-radius: var(--radius); padding: 4px; overflow-x: auto;
+    }
+    .tab-btn {
+      flex: 1; min-width: 120px; padding: 11px 16px;
+      background: transparent; border: none; border-radius: 6px;
+      font-size: 13px; font-weight: 600; color: var(--text-mute);
+      cursor: pointer; transition: all var(--transition); white-space: nowrap;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    .tab-btn:hover { color: var(--text-pri); background: rgba(255,255,255,0.04); }
+    .tab-btn.active {
+      background: var(--navy-card); color: var(--gold);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+    .tab-btn .tab-icon { font-size: 15px; }
+    .tab-content { display: none; animation: fadeSlide 0.25s ease; }
+    .tab-content.active { display: block; }
+
+    /* Process Flow */
+    .process-flow { display: flex; align-items: flex-start; gap: 0; margin: 24px 0; overflow-x: auto; }
+    .proc-step {
+      flex: 1; min-width: 110px; display: flex; flex-direction: column; align-items: center;
+      text-align: center; position: relative; padding: 0 8px;
+    }
+    .proc-step:not(:last-child)::after {
+      content: '→'; position: absolute; right: -10px; top: 22px;
+      color: var(--gold-dim); font-size: 16px; font-weight: 700;
+    }
+    .proc-circle {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(201,168,76,0.12); border: 2px solid var(--gold-dim);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; margin-bottom: 10px; flex-shrink: 0;
+    }
+    .proc-label { font-size: 11.5px; font-weight: 600; color: var(--text-pri); margin-bottom: 4px; line-height: 1.3; }
+    .proc-sub   { font-size: 10.5px; color: var(--text-mute); line-height: 1.4; }
+
+    /* Info Cards row */
+    .info-card-row  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .info-card-row2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+    .info-card {
+      background: var(--navy-card); border: 1px solid var(--navy-line);
+      border-radius: var(--radius); padding: 22px 20px;
+      transition: border-color var(--transition);
+    }
+    .info-card:hover { border-color: var(--gold-dim); }
+    .info-card-icon  { font-size: 20px; margin-bottom: 10px; }
+    .info-card-title { font-size: 13px; font-weight: 700; color: var(--text-pri); margin-bottom: 8px; }
+    .info-card-body  { font-size: 12.5px; color: var(--text-sec); line-height: 1.7; }
+    .info-card-val   { font-size: 20px; font-weight: 800; color: var(--gold); margin-bottom: 4px; }
+
+    /* Warning / Highlight blocks */
+    .block-warning {
+      background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.25);
+      border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px;
+    }
+    .block-warning-title { font-size: 12px; font-weight: 700; color: #F87171; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .block-warning ul    { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .block-warning li    { font-size: 12.5px; color: #FCA5A5; padding-left: 14px; position: relative; }
+    .block-warning li::before { content: '!'; position: absolute; left: 0; color: #F87171; font-weight: 700; }
+
+    .block-tip {
+      background: rgba(43,191,171,0.07); border: 1px solid rgba(43,191,171,0.25);
+      border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px;
+    }
+    .block-tip-title { font-size: 12px; font-weight: 700; color: var(--accent-teal); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .block-tip ul    { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .block-tip li    { font-size: 12.5px; color: #99E6DD; padding-left: 14px; position: relative; }
+    .block-tip li::before { content: '✓'; position: absolute; left: 0; color: var(--accent-teal); font-weight: 700; }
+
+    /* Quadrant Matrix */
+    .quadrant-wrap { margin-bottom: 24px; }
+    .quadrant-title { font-size: 13px; font-weight: 700; color: var(--text-sec); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+    .quadrant {
+      display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+      gap: 2px; border: 1px solid var(--navy-line); border-radius: var(--radius);
+      overflow: hidden; height: 260px;
+    }
+    .quad-cell {
+      padding: 18px 16px; display: flex; flex-direction: column; justify-content: flex-start;
+      position: relative;
+    }
+    .quad-cell:nth-child(1) { background: rgba(201,168,76,0.10); }
+    .quad-cell:nth-child(2) { background: rgba(43,191,171,0.08); }
+    .quad-cell:nth-child(3) { background: rgba(74,144,217,0.08); }
+    .quad-cell:nth-child(4) { background: rgba(239,68,68,0.06); }
+    .quad-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+    .quad-cell:nth-child(1) .quad-label { color: var(--gold); }
+    .quad-cell:nth-child(2) .quad-label { color: var(--accent-teal); }
+    .quad-cell:nth-child(3) .quad-label { color: var(--accent-blue); }
+    .quad-cell:nth-child(4) .quad-label { color: #F87171; }
+    .quad-title { font-size: 13px; font-weight: 700; color: var(--text-pri); margin-bottom: 6px; }
+    .quad-desc  { font-size: 11.5px; color: var(--text-sec); line-height: 1.5; }
+    .quad-axis-x, .quad-axis-y {
+      position: absolute; font-size: 9px; color: var(--text-mute); letter-spacing: 1px;
+    }
+    .quadrant-axes {
+      position: relative; height: 20px; display: grid; grid-template-columns: 1fr 1fr;
+    }
+    .quad-axis-label { font-size: 10px; color: var(--text-mute); text-align: center; padding: 4px 0; }
+
+    /* Progress bar */
+    .progress-row { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+    .progress-item-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-sec); margin-bottom: 5px; }
+    .progress-bar-bg { height: 6px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--gold-dim), var(--gold)); }
+
+    /* Section label within tab */
+    .tab-section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-mute); margin-bottom: 14px; margin-top: 28px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--navy-line);
+    }
+    .tab-section-label:first-child { margin-top: 0; }
+
+    /* Sidebar sub-items */
+    .sidebar-sub { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; }
+    .sidebar-sub.open { max-height: 300px; }
+    .sidebar-sub-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 20px 7px 40px; cursor: pointer;
+      font-size: 12px; color: var(--text-mute);
+      border-left: 3px solid transparent;
+      transition: all var(--transition); text-decoration: none;
+    }
+    .sidebar-sub-item:hover { color: var(--text-sec); background: rgba(201,168,76,0.04); }
+    .sidebar-sub-item.active { color: var(--gold-lt); border-left-color: var(--gold-dim); background: rgba(201,168,76,0.06); }
+    .sidebar-expand-btn {
+      margin-left: auto; font-size: 10px; color: var(--text-mute);
+      transition: transform 0.25s ease; flex-shrink: 0;
+    }
+    .sidebar-item.parent-active .sidebar-expand-btn { transform: rotate(90deg); }
+
+    /* ─── Radar Module ─── */
+    @keyframes radarSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    @keyframes radarPing  { 0%,75%,100%{opacity:0;transform:scale(.5)} 80%{opacity:1;transform:scale(1);box-shadow:0 0 7px var(--gold)} 92%{opacity:.6} }
+
+    /* Dish */
+    .radar-dish { width:130px; height:130px; position:relative; flex-shrink:0; }
+    .radar-dish-lg { width:180px; height:180px; }
+    .radar-ring { position:absolute; border-radius:50%; border:1px solid rgba(201,168,76,0.22); top:50%; left:50%; transform:translate(-50%,-50%); }
+    .radar-ring-1 { width:100%; height:100%; }
+    .radar-ring-2 { width:66%;  height:66%;  border-color:rgba(201,168,76,0.16); }
+    .radar-ring-3 { width:33%;  height:33%;  border-color:rgba(201,168,76,0.14); }
+    .radar-line   { position:absolute; background:rgba(201,168,76,0.10); }
+    .radar-line-h { width:100%; height:1px; top:50%; left:0; }
+    .radar-line-v { height:100%; width:1px; left:50%; top:0; }
+    .radar-glow   {
+      position:absolute; width:100%; height:100%; border-radius:50%;
+      background:conic-gradient(from 0deg,
+        rgba(201,168,76,0.0) 0deg, rgba(201,168,76,0.16) 44deg,
+        rgba(201,168,76,0.0) 62deg, transparent 63deg, transparent 360deg);
+      animation:radarSpin 2.8s linear infinite;
+    }
+    .radar-arm {
+      position:absolute; top:50%; left:50%; width:50%; height:1.5px;
+      background:linear-gradient(90deg,rgba(201,168,76,0.9),transparent);
+      transform-origin:left center;
+      animation:radarSpin 2.8s linear infinite;
+    }
+    .radar-dot { position:absolute; width:5px; height:5px; border-radius:50%; background:var(--gold); animation:radarPing 2.8s ease-in-out infinite; }
+    .radar-dot-1 { top:21%; left:63%; animation-delay:0.8s; }
+    .radar-dot-2 { top:62%; left:24%; animation-delay:1.9s; }
+    .radar-dot-3 { top:36%; left:75%; animation-delay:2.4s; }
+    .radar-center { position:absolute; width:6px; height:6px; border-radius:50%; background:var(--gold); top:50%; left:50%; transform:translate(-50%,-50%); box-shadow:0 0 6px var(--gold-dim); }
+
+    /* Homepage Radar Section */
+    .radar-section {
+      margin-top:36px; border-radius:var(--radius);
+      background:linear-gradient(135deg,var(--navy-card) 0%,rgba(11,18,36,0.85) 100%);
+      border:1px solid var(--navy-line); padding:36px 44px;
+      display:flex; align-items:center; gap:52px; position:relative; overflow:hidden;
+    }
+    .radar-section::before {
+      content:''; position:absolute; inset:0; pointer-events:none;
+      background:radial-gradient(circle at 10% 50%, rgba(74,144,217,0.07) 0%, transparent 55%);
+    }
+    .radar-search-wrap  { flex:1; position:relative; z-index:1; }
+    .radar-section-tag  { font-size:10px; font-weight:700; letter-spacing:2px; color:var(--accent-blue); margin-bottom:10px; }
+    .radar-section-title { font-size:21px; font-weight:800; color:var(--text-pri); margin-bottom:8px; }
+    .radar-section-title span { color:var(--gold); }
+    .radar-section-sub  { font-size:13px; color:var(--text-sec); line-height:1.75; margin-bottom:20px; }
+    .radar-input-row    { display:flex; gap:10px; margin-bottom:14px; }
+    .radar-input {
+      flex:1; padding:11px 16px;
+      background:rgba(255,255,255,0.04); border:1px solid var(--navy-line);
+      border-radius:var(--radius); color:var(--text-pri); font-size:14px;
+      font-family:inherit; outline:none;
+      transition:border-color var(--transition), background var(--transition);
+    }
+    .radar-input::placeholder { color:var(--text-mute); }
+    .radar-input:focus { border-color:var(--gold-dim); background:rgba(255,255,255,0.06); }
+    .radar-btn {
+      padding:11px 26px; border-radius:var(--radius);
+      background:linear-gradient(135deg,var(--gold-dim),var(--gold));
+      border:none; color:var(--navy); font-size:13px; font-weight:700;
+      cursor:pointer; white-space:nowrap; font-family:inherit;
+      transition:opacity var(--transition), transform var(--transition);
+    }
+    .radar-btn:hover { opacity:.88; transform:translateY(-1px); }
+    .radar-btn:active { transform:translateY(0); }
+    .radar-quick       { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .radar-quick-label { font-size:11px; color:var(--text-mute); flex-shrink:0; }
+    .radar-chip {
+      font-size:11.5px; padding:4px 13px; border-radius:14px;
+      background:rgba(255,255,255,0.04); border:1px solid var(--navy-line);
+      color:var(--text-sec); cursor:pointer; transition:all var(--transition);
+    }
+    .radar-chip:hover { border-color:var(--gold-dim); color:var(--gold); background:rgba(201,168,76,0.08); }
+
+    /* Scan overlay */
+    .scan-overlay { text-align:center; padding:60px 40px; display:flex; flex-direction:column; align-items:center; }
+    .scan-overlay .radar-dish-lg { margin-bottom:32px; }
+    .scan-company   { font-size:28px; font-weight:800; color:var(--text-pri); margin-bottom:6px; }
+    .scan-subtitle  { font-size:13px; color:var(--text-mute); margin-bottom:28px; letter-spacing:.5px; }
+    .scan-bar-wrap  { width:360px; max-width:90%; height:4px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; margin-bottom:20px; }
+    .scan-bar       { height:100%; border-radius:2px; background:linear-gradient(90deg,var(--gold-dim),var(--gold)); width:0; }
+    .scan-steps     { text-align:left; width:360px; max-width:90%; }
+    .scan-step      { display:flex; align-items:center; gap:9px; padding:5px 0; font-size:12px; }
+    .scan-dot       { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+    .scan-step-done   { color:var(--accent-teal); }
+    .scan-step-done .scan-dot { background:var(--accent-teal); }
+    .scan-step-active { color:var(--gold); }
+    .scan-step-active .scan-dot { background:var(--gold); animation:pulse 1s infinite; }
+    .scan-step-wait { color:var(--text-mute); }
+    .scan-step-wait .scan-dot { background:var(--navy-line); }
+
+    /* Intel Hero */
+    .intel-hero {
+      background:var(--navy-card); border:1px solid var(--navy-line);
+      border-radius:var(--radius); padding:28px 32px; margin-bottom:28px;
+      display:flex; justify-content:space-between; align-items:flex-start; gap:32px;
+    }
+    .intel-hero-left { flex:1; }
+    .intel-tag  { font-size:10px; font-weight:700; letter-spacing:2px; color:var(--accent-blue); margin-bottom:10px; }
+    .intel-name { font-size:24px; font-weight:800; color:var(--text-pri); margin-bottom:14px; }
+    .intel-summary-list { list-style:none; display:flex; flex-direction:column; gap:8px; }
+    .intel-summary-list li { font-size:13px; color:var(--text-sec); padding-left:18px; position:relative; line-height:1.65; }
+    .intel-summary-list li::before { content:'▸'; position:absolute; left:0; color:var(--gold); font-size:9px; top:4px; }
+    .intel-kpi-grid  { display:grid; grid-template-columns:1fr 1fr; gap:10px; flex-shrink:0; }
+    .intel-kpi       { background:rgba(255,255,255,0.04); border:1px solid var(--navy-line); border-radius:6px; padding:12px 18px; text-align:center; min-width:110px; }
+    .intel-kpi-val   { font-size:14px; font-weight:800; color:var(--gold); margin-bottom:4px; word-break:keep-all; }
+    .intel-kpi-label { font-size:10px; color:var(--text-mute); }
+
+    /* Driver grid */
+    .driver-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
+    .driver-card { background:var(--navy-card); border:1px solid var(--navy-line); border-radius:var(--radius); padding:22px 20px; transition:border-color var(--transition); }
+    .driver-card:hover { border-color:var(--gold-dim); }
+    .driver-icon  { font-size:20px; margin-bottom:12px; }
+    .driver-title { font-size:13.5px; font-weight:700; color:var(--text-pri); margin-bottom:6px; display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+    .driver-score-badge { font-size:10px; font-weight:700; color:var(--gold); background:rgba(201,168,76,0.12); padding:2px 8px; border-radius:10px; white-space:nowrap; flex-shrink:0; }
+    .driver-desc  { font-size:12.5px; color:var(--text-sec); line-height:1.7; }
+
+    /* Theme grid */
+    .theme-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:28px; }
+    .theme-card  { background:var(--navy-card); border:1px solid var(--navy-line); border-radius:var(--radius); padding:18px 20px; transition:border-color var(--transition); }
+    .theme-card:hover { border-color:var(--gold-dim); }
+    .theme-card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .theme-badge { font-size:13px; font-weight:700; color:var(--text-pri); }
+    .theme-pct   { font-size:14px; font-weight:800; color:var(--gold); }
+    .theme-bar-bg   { height:4px; background:rgba(255,255,255,0.07); border-radius:2px; margin-bottom:10px; overflow:hidden; }
+    .theme-bar-fill { height:100%; border-radius:2px; }
+    .theme-desc  { font-size:12px; color:var(--text-sec); line-height:1.65; }
+
+    /* Target grid */
+    .target-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
+    .target-card { background:var(--navy-card); border:1px solid var(--navy-line); border-radius:var(--radius); padding:22px 20px; transition:border-color var(--transition), transform var(--transition); }
+    .target-card:hover { border-color:var(--gold-dim); transform:translateY(-2px); }
+    .target-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
+    .target-type-tag { font-size:10px; font-weight:700; letter-spacing:1.5px; color:var(--accent-blue); padding-top:4px; }
+    .fit-ring { width:48px; height:48px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; }
+    .fit-hi { background:rgba(43,191,171,0.12); border:2px solid var(--accent-teal); color:var(--accent-teal); }
+    .fit-md { background:rgba(201,168,76,0.12); border:2px solid var(--gold-dim); color:var(--gold); }
+    .fit-lo { background:rgba(74,144,217,0.12); border:2px solid var(--accent-blue); color:var(--accent-blue); }
+    .target-name     { font-size:14px; font-weight:700; color:var(--text-pri); margin-bottom:8px; }
+    .target-meta-row { display:flex; gap:14px; margin-bottom:10px; flex-wrap:wrap; }
+    .target-meta-item { font-size:11px; color:var(--text-mute); }
+    .target-reason   { font-size:12.5px; color:var(--text-sec); line-height:1.65; }
+
+    /* Chain badge */
+    .chain-dir-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; margin-right:6px; background:rgba(201,168,76,0.12); color:var(--gold); }
+
+    /* Radar result header */
+    .radar-result-hd { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    .radar-reset-btn { font-size:12px; padding:7px 16px; border-radius:var(--radius); background:rgba(255,255,255,0.04); border:1px solid var(--navy-line); color:var(--text-sec); cursor:pointer; font-family:inherit; transition:all var(--transition); }
+    .radar-reset-btn:hover { border-color:var(--gold-dim); color:var(--gold); }
+
+    /* Light mode overrides for radar */
+    html.light .radar-section { background:linear-gradient(135deg,#e8edf8 0%,#f2f5fc 100%); }
+    html.light .radar-input { background:rgba(0,0,0,0.03); }
+    html.light .radar-input:focus { background:rgba(0,0,0,0.06); }
+    html.light .radar-chip { background:rgba(0,0,0,0.03); }
+    html.light .radar-chip:hover { background:rgba(139,105,20,0.08); }
+    html.light .scan-bar-wrap  { background:rgba(0,0,0,0.08); }
+    html.light .theme-bar-bg   { background:rgba(0,0,0,0.08); }
+    html.light .intel-kpi      { background:rgba(0,0,0,0.03); }
+    html.light .driver-card, html.light .theme-card, html.light .target-card, html.light .intel-hero { background:var(--navy-card); }
+
+    /* ─── Theme Toggle Button ─── */
+    .theme-toggle {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 14px; border-radius: 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--navy-line);
+      color: var(--text-sec); font-size: 12px; font-weight: 600;
+      cursor: pointer; letter-spacing: 0.3px; flex-shrink: 0;
+      transition: background var(--transition), color var(--transition), border-color var(--transition);
+    }
+    .theme-toggle:hover {
+      background: rgba(201,168,76,0.1);
+      color: var(--gold); border-color: var(--gold-dim);
+    }
+    .theme-icon { font-size: 15px; line-height: 1; transition: transform 0.4s ease; }
+    .theme-toggle:hover .theme-icon { transform: rotate(20deg); }
+
+    /* ─── Light Theme Variables ─── */
+    html.light {
+      --navy:        #EDF0F8;
+      --navy-mid:    #FFFFFF;
+      --navy-card:   #FFFFFF;
+      --navy-line:   #D2DBE8;
+      --text-pri:    #0F1B2D;
+      --text-sec:    #374F68;
+      --text-mute:   #7A8EA8;
+      --gold:        #8B6914;
+      --gold-lt:     #6B5010;
+      --gold-dim:    #C9A84C;
+      --accent-teal: #0D9488;
+      --accent-blue: #2563EB;
+    }
+
+    /* Light mode component overrides */
+    html.light .header  { box-shadow: 0 1px 8px rgba(0,0,0,0.08); }
+    html.light .sidebar { box-shadow: 2px 0 10px rgba(0,0,0,0.06); }
+
+    html.light .overview-hero {
+      background: linear-gradient(135deg, #e8edf8 0%, rgba(210,219,232,0.5) 100%);
+    }
+    html.light .cap-hero {
+      background: linear-gradient(135deg, #e8edf8 0%, rgba(210,219,232,0.6) 100%);
+    }
+    html.light .cap-kpi {
+      background: rgba(0,0,0,0.03);
+    }
+    html.light .cap-kpi-num   { color: var(--accent-blue); }
+    html.light .cap-hero-tag  { color: var(--accent-blue); }
+
+    html.light .kpi-card::after {
+      background: linear-gradient(90deg, var(--gold-dim), transparent);
+    }
+    html.light .module-nav-card:hover {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+      background: rgba(237,240,248,0.95);
+    }
+    html.light .sidebar-item.active .sidebar-icon {
+      background: rgba(139,105,20,0.15);
+    }
+    html.light .progress-bar-bg { background: rgba(0,0,0,0.08); }
+
+    html.light .quad-cell:nth-child(1) { background: rgba(139,105,20,0.09); }
+    html.light .quad-cell:nth-child(2) { background: rgba(13,148,136,0.07); }
+    html.light .quad-cell:nth-child(3) { background: rgba(37,99,235,0.07); }
+    html.light .quad-cell:nth-child(4) { background: rgba(220,38,38,0.05); }
+
+    html.light .block-warning {
+      background: rgba(220,38,38,0.04); border-color: rgba(220,38,38,0.22);
+    }
+    html.light .block-warning-title { color: #B91C1C; }
+    html.light .block-warning li    { color: #DC2626; }
+    html.light .block-warning li::before { color: #B91C1C; }
+
+    html.light .block-tip {
+      background: rgba(13,148,136,0.05); border-color: rgba(13,148,136,0.25);
+    }
+    html.light .block-tip-title { color: #0D9488; }
+    html.light .block-tip li    { color: #0F766E; }
+    html.light .block-tip li::before { color: #0D9488; }
+
+    html.light .status-demo {
+      color: #92400E; background: rgba(146,64,14,0.08); border-color: rgba(146,64,14,0.22);
+    }
+    html.light .compare-table tr:hover td { background: rgba(139,105,20,0.04); color: var(--text-pri); }
+    html.light .timeline { background: #f5f7fc; }
+    html.light .tl-phase:hover { background: rgba(139,105,20,0.06); }
+
+    html.light ::-webkit-scrollbar-track { background: #E2E8F2; }
+    html.light ::-webkit-scrollbar-thumb { background: #C0CCDA; }
+    html.light ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+
+    html.light .theme-toggle { background: rgba(0,0,0,0.04); }
+    html.light .theme-toggle:hover { background: rgba(139,105,20,0.10); }
+
+    /* ─── Smooth theme transition (applied to all key surfaces) ─── */
+    body, .header, .sidebar, .footer,
+    .kpi-card, .overview-hero, .cap-hero, .cap-kpi,
+    .module-nav-card, .submodule-panel, .info-card, .advantage-card,
+    .module-header, .tab-nav, .tab-btn, .tl-phase, .timeline,
+    .block-warning, .block-tip, .quadrant, .quad-cell,
+    .sidebar-item, .sidebar-sub-item, .progress-bar-bg,
+    .compare-table, .compare-table th, .compare-table td,
+    .proc-circle, .header-badge, .status-badge, .theme-toggle {
+      transition:
+        background-color 0.28s ease,
+        border-color     0.28s ease,
+        box-shadow       0.28s ease !important;
+    }
+    body, .section-title, .section-subtitle, .section-tag,
+    .kpi-label, .kpi-num, .kpi-desc, .kpi-icon,
+    .sidebar-text .label, .sidebar-text .meta, .sidebar-section-label,
+    .module-header-title, .module-header-sub, .module-header-desc,
+    .submodule-name, .submodule-value, .submodule-list li,
+    .compare-table th, .compare-table td, .tab-section-label,
+    .info-card-title, .info-card-body, .info-card-val, .info-card-icon,
+    .proc-label, .proc-sub, .quad-title, .quad-desc, .quad-label,
+    .progress-item-label, .block-warning-title, .block-tip-title,
+    .block-warning li, .block-tip li,
+    .adv-bullet, .advantage-list li, .advantage-card-title,
+    .cap-kpi-label, .cap-kpi-num, .cap-hero-title, .cap-hero-sub,
+    .breadcrumb, .footer-left, .footer-right, .header-title,
+    .tl-num, .tl-name, .tl-sub, .tab-btn {
+      transition: color 0.28s ease !important;
+    }
+
+    /* ─── Print ─── */
+    @media print {
+      .header, .sidebar, .footer { display: none; }
+      .main { margin: 0; padding: 20px; }
+      .page { display: block !important; page-break-before: always; }
+      .page:first-child { page-break-before: avoid; }
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 900px) {
+      :root { --sidebar-w: 0px; }
+      .sidebar { transform: translateX(-100%); width: 240px; transition: transform var(--transition); }
+      .sidebar.open { transform: translateX(0); --sidebar-w: 240px; }
+      .header { padding-left: 60px; }
+      .header-brand { display: none; }
+      .main, .footer { margin-left: 0; padding: 24px; }
+      .kpi-row { grid-template-columns: 1fr; }
+      .module-grid, .submodule-grid, .advantage-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── HEADER ─── -->
+<header class="header">
+  <div class="header-brand">
+    <div class="header-logo">EQ</div>
+    <div class="header-brand-text">
+      <div class="name">EMO · 企业家管理办公室</div>
+      <div class="sub">企业家管理办公室</div>
+    </div>
+  </div>
+  <div class="header-title">上市公司市值管理工具包</div>
+  <div class="header-meta">
+    <span class="status-badge status-demo"><span class="status-dot"></span>Demo 演示版</span>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切换明亮 / 深夜模式">
+      <span class="theme-icon" id="themeIcon">☀️</span>
+      <span id="themeLabel">明亮</span>
+    </button>
+    <span class="header-date" id="headerDate"></span>
+  </div>
+</header>
+
+<!-- ─── SIDEBAR ─── -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section-label">导航 · Navigation</div>
+
+  <a class="sidebar-item active" href="#" data-page="home" onclick="showPage('home',this);return false;">
+    <div class="sidebar-icon">🏠</div>
+    <div class="sidebar-text">
+      <div class="label">工具包总览</div>
+      <div class="meta">Dashboard</div>
+    </div>
+  </a>
+
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section-label">业务模块</div>
+
+  <a class="sidebar-item" href="#" data-page="ipo" onclick="showPage('ipo',this);return false;">
+    <div class="sidebar-icon">📈</div>
+    <div class="sidebar-text">
+      <div class="label">IPO 市值管理</div>
+      <div class="meta">模块 01</div>
+    </div>
+  </a>
+
+  <a class="sidebar-item" href="#" data-page="capital" id="sidebar-capital"
+     onclick="showPage('capital',this); toggleCapSub(); return false;">
+    <div class="sidebar-icon">💼</div>
+    <div class="sidebar-text">
+      <div class="label">上市后资本运作</div>
+      <div class="meta">模块 02</div>
+    </div>
+    <span class="sidebar-expand-btn" id="capExpandBtn">▶</span>
+  </a>
+  <div class="sidebar-sub" id="capSubMenu">
+    <a class="sidebar-sub-item" href="#" onclick="showPage('capital',document.getElementById('sidebar-capital'));showCapTab('equity',document.querySelector('#capTabNav .tab-btn:nth-child(1)'));return false;">
+      📊 股权增持
+    </a>
+    <a class="sidebar-sub-item" href="#" onclick="showPage('capital',document.getElementById('sidebar-capital'));showCapTab('refi',document.querySelector('#capTabNav .tab-btn:nth-child(2)'));return false;">
+      💰 再融资
+    </a>
+    <a class="sidebar-sub-item" href="#" onclick="showPage('capital',document.getElementById('sidebar-capital'));showCapTab('ma',document.querySelector('#capTabNav .tab-btn:nth-child(3)'));return false;">
+      🔀 并购重组
+    </a>
+    <a class="sidebar-sub-item" href="#" onclick="showPage('capital',document.getElementById('sidebar-capital'));showCapTab('stable',document.querySelector('#capTabNav .tab-btn:nth-child(4)'));return false;">
+      🛡️ 股价维稳
+    </a>
+  </div>
+
+  <a class="sidebar-item" href="#" data-page="normal" onclick="showPage('normal',this);return false;">
+    <div class="sidebar-icon">🔄</div>
+    <div class="sidebar-text">
+      <div class="label">常态化管理运营</div>
+      <div class="meta">模块 03</div>
+    </div>
+  </a>
+
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section-label">综合分析</div>
+
+  <a class="sidebar-item" href="#" data-page="advantage" onclick="showPage('advantage',this);return false;">
+    <div class="sidebar-icon">⭐</div>
+    <div class="sidebar-text">
+      <div class="label">核心优势 & 场景</div>
+      <div class="meta">模块 04</div>
+    </div>
+  </a>
+
+  <a class="sidebar-item" href="#" data-page="compare" onclick="showPage('compare',this);return false;">
+    <div class="sidebar-icon">📊</div>
+    <div class="sidebar-text">
+      <div class="label">阶段对比总览</div>
+      <div class="meta">横向比较</div>
+    </div>
+  </a>
+
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section-label">智能工具</div>
+
+  <a class="sidebar-item" href="#" data-page="radar" onclick="showPage('radar',this);return false;">
+    <div class="sidebar-icon">🛰️</div>
+    <div class="sidebar-text">
+      <div class="label">探嗅雷达</div>
+      <div class="meta">并购需求探嗅</div>
+    </div>
+    <span style="font-size:9px;font-weight:700;color:var(--accent-blue);background:rgba(74,144,217,0.12);border:1px solid rgba(74,144,217,0.25);padding:2px 6px;border-radius:8px;margin-left:auto;flex-shrink:0">AI</span>
+  </a>
+</nav>
+
+<!-- ─── MAIN CONTENT ─── -->
+<main class="main">
+
+  <!-- ════ PAGE: HOME ════ -->
+  <div class="page active" id="page-home">
+    <div class="overview-hero">
+      <div class="overview-hero-title">上市公司<span>市值管理</span>工具包</div>
+      <div class="overview-hero-sub">
+        围绕企业 IPO、上市后资本运作、长期市值维护三大阶段，提供全生命周期市值管理解决方案，
+        实现<strong style="color:var(--gold-lt)">价值挖掘、价值传导与价值实现</strong>闭环。
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-icon">🎯</div>
+        <div class="kpi-num">3</div>
+        <div class="kpi-label">核心阶段覆盖</div>
+        <div class="kpi-desc">IPO 前 · 上市后 · 长期运营，全生命周期一体化</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">📦</div>
+        <div class="kpi-num">4</div>
+        <div class="kpi-label">业务模块</div>
+        <div class="kpi-desc">结构化、可定制的服务组合拆分方案</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">🔗</div>
+        <div class="kpi-num">8+</div>
+        <div class="kpi-label">子功能模块</div>
+        <div class="kpi-desc">按需组合，场景定制，合规高效</div>
+      </div>
+    </div>
+
+    <div class="timeline-wrap">
+      <div class="timeline-title">全生命周期 · 服务路径</div>
+      <div class="timeline">
+        <div class="tl-phase" onclick="showPage('ipo', document.querySelector('[data-page=ipo]'))">
+          <div class="tl-num">PHASE 01</div>
+          <div class="tl-name">IPO 市值管理</div>
+          <div class="tl-sub">择时发行 · 定价优化 · 新股价值传导</div>
+          <div class="tl-arrow"></div>
+        </div>
+        <div class="tl-phase" onclick="showPage('capital', document.querySelector('[data-page=capital]'))">
+          <div class="tl-num">PHASE 02</div>
+          <div class="tl-name">上市后资本运作</div>
+          <div class="tl-sub">再融资 · 增持 · 并购重组</div>
+          <div class="tl-arrow"></div>
+        </div>
+        <div class="tl-phase" onclick="showPage('normal', document.querySelector('[data-page=normal]'))">
+          <div class="tl-num">PHASE 03</div>
+          <div class="tl-name">常态化市值管理</div>
+          <div class="tl-sub">长期维护 · 合规运营 · IR 体系建设</div>
+          <div class="tl-arrow"></div>
+        </div>
+        <div class="tl-phase" onclick="showPage('advantage', document.querySelector('[data-page=advantage]'))">
+          <div class="tl-num">PHASE 04</div>
+          <div class="tl-name">核心优势 & 场景</div>
+          <div class="tl-sub">工具包价值总结</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-grid">
+      <button class="module-nav-card" onclick="showPage('ipo', document.querySelector('[data-page=ipo]'))">
+        <span class="card-num">01</span>
+        <div class="card-icon">📈</div>
+        <div class="card-title">IPO 市值管理服务</div>
+        <div class="card-sub">解决 IPO 发行定价、破发风险、投资故事架构问题，为上市奠定市值基础。</div>
+        <div class="card-tags">
+          <span class="card-tag">行业研究</span>
+          <span class="card-tag">公司估值</span>
+          <span class="card-tag">定价择时</span>
+          <span class="card-tag">投资者关系</span>
+        </div>
+        <div class="card-arrow">→</div>
+      </button>
+      <button class="module-nav-card" onclick="showPage('capital', document.querySelector('[data-page=capital]'))">
+        <span class="card-num">02</span>
+        <div class="card-icon">💼</div>
+        <div class="card-title">上市后资本运作模块</div>
+        <div class="card-sub">围绕股权运作与产业扩张，提供合规高效的市值管理方案。</div>
+        <div class="card-tags">
+          <span class="card-tag">股权增持</span>
+          <span class="card-tag">再融资</span>
+          <span class="card-tag">并购重组</span>
+          <span class="card-tag">股价维稳</span>
+        </div>
+        <div class="card-arrow">→</div>
+      </button>
+      <button class="module-nav-card" onclick="showPage('normal', document.querySelector('[data-page=normal]'))">
+        <span class="card-num">03</span>
+        <div class="card-icon">🔄</div>
+        <div class="card-title">常态化市值管理运营</div>
+        <div class="card-sub">为上市公司提供持续运营服务，构建长期稳定的市值管理机制。</div>
+        <div class="card-tags">
+          <span class="card-tag">IR 体系</span>
+          <span class="card-tag">舆情监控</span>
+          <span class="card-tag">股权激励</span>
+          <span class="card-tag">媒体管理</span>
+        </div>
+        <div class="card-arrow">→</div>
+      </button>
+      <button class="module-nav-card" onclick="showPage('advantage', document.querySelector('[data-page=advantage]'))">
+        <span class="card-num">04</span>
+        <div class="card-icon">⭐</div>
+        <div class="card-title">核心优势与适用场景</div>
+        <div class="card-sub">工具包整体价值总结，明确适用企业类型与核心差异化优势。</div>
+        <div class="card-tags">
+          <span class="card-tag">全周期覆盖</span>
+          <span class="card-tag">场景定制</span>
+          <span class="card-tag">强合规性</span>
+          <span class="card-tag">产业协同</span>
+        </div>
+        <div class="card-arrow">→</div>
+      </button>
+    </div>
+
+    <!-- ════ 探嗅雷达 · 首页入口 ════ -->
+    <div class="radar-section">
+      <div class="radar-dish">
+        <div class="radar-ring radar-ring-1"></div>
+        <div class="radar-ring radar-ring-2"></div>
+        <div class="radar-ring radar-ring-3"></div>
+        <div class="radar-line radar-line-h"></div>
+        <div class="radar-line radar-line-v"></div>
+        <div class="radar-glow"></div>
+        <div class="radar-arm"></div>
+        <div class="radar-dot radar-dot-1"></div>
+        <div class="radar-dot radar-dot-2"></div>
+        <div class="radar-dot radar-dot-3"></div>
+        <div class="radar-center"></div>
+      </div>
+      <div class="radar-search-wrap">
+        <div class="radar-section-tag">EMO · 探嗅雷达 · AI-DRIVEN M&amp;A INTELLIGENCE</div>
+        <div class="radar-section-title">并购需求<span>探嗅</span>雷达</div>
+        <div class="radar-section-sub">输入任意上市公司名称，AI 自动扫描产业链并购机会与科技创新主题缺口，秒级生成定制化并购需求分析报告</div>
+        <div class="radar-input-row">
+          <input class="radar-input" id="radarInput" type="text"
+            placeholder="输入上市公司名称，如：宁德时代" autocomplete="off" />
+          <button class="radar-btn" onclick="startRadarScan()">开始探嗅 →</button>
+        </div>
+        <div class="radar-quick">
+          <span class="radar-quick-label">快捷：</span>
+          <span class="radar-chip" onclick="radarQuickSearch('比亚迪')">比亚迪</span>
+          <span class="radar-chip" onclick="radarQuickSearch('宁德时代')">宁德时代</span>
+          <span class="radar-chip" onclick="radarQuickSearch('迈瑞医疗')">迈瑞医疗</span>
+          <span class="radar-chip" onclick="radarQuickSearch('海康威视')">海康威视</span>
+          <span class="radar-chip" onclick="radarQuickSearch('中芯国际')">中芯国际</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════ PAGE: IPO ════ -->
+  <div class="page" id="page-ipo">
+    <div class="breadcrumb">工具包总览 <span>/</span> <span class="current">IPO 市值管理服务</span></div>
+    <div class="section-header">
+      <div class="section-tag">模块 01</div>
+      <div class="section-title">IPO 市值管理服务</div>
+      <div class="section-subtitle">拟上市阶段：择时发行、定价优化、新股价值传导</div>
+      <div class="section-desc">解决 IPO 发行定价、破发风险、投资故事架构等问题，为上市奠定坚实的市值基础。</div>
+    </div>
+
+    <div class="module-header">
+      <div class="module-header-icon">📈</div>
+      <div class="module-header-body">
+        <div class="module-header-tag">IPO MARKET VALUE MANAGEMENT</div>
+        <div class="module-header-title">IPO 市值管理服务</div>
+        <div class="module-header-sub">拟上市阶段：择时发行 · 定价优化 · 新股价值传导</div>
+        <div class="module-header-desc">
+          通过深度行业研究、精准估值锚定、科学择时策略，降低 IPO 破发概率，
+          提升发行成功率，帮助企业在资本市场建立长期市值信心。
+        </div>
+      </div>
+    </div>
+
+    <div class="submodule-grid">
+      <div class="submodule-panel">
+        <div class="submodule-name">🔬 行业研究与公司价值锚定</div>
+        <div class="submodule-value">构建投资逻辑，规避价值低估</div>
+        <ul class="submodule-list">
+          <li>行业赛道深度分析，明确公司市场定位</li>
+          <li>企业核心竞争力梳理与量化评估</li>
+          <li>可比公司估值对标，建立合理市盈率区间</li>
+          <li>路演与投资者价值包装，强化投资故事说服力</li>
+        </ul>
+      </div>
+      <div class="submodule-panel">
+        <div class="submodule-name">⏱️ IPO 发行二级市场择时</div>
+        <div class="submodule-value">规避市场波动，提升发行成功率</div>
+        <ul class="submodule-list">
+          <li>宏观与市场情绪研判，捕捉最优发行窗口</li>
+          <li>最优发行时机建议，科学安排上市节奏</li>
+          <li>降低破发与定价偏离风险，保护发行方利益</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="compare-table-wrap">
+      <div class="compare-table-title">服务关键指标</div>
+      <table class="compare-table">
+        <thead>
+          <tr><th>服务维度</th><th>核心内容</th><th>产出物</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>行业研究</td><td>赛道深度调研，竞争格局梳理</td><td>行业研究报告</td></tr>
+          <tr><td>估值分析</td><td>DCF / 可比公司法 / 历史 PE 多维度</td><td>估值报告 & 建议区间</td></tr>
+          <tr><td>择时研判</td><td>市场情绪 + 宏观指标综合判断</td><td>窗口期建议 & 风险提示</td></tr>
+          <tr><td>路演支持</td><td>投资故事架构 + Q&A 话术准备</td><td>路演材料 + 演练方案</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: CAPITAL ════ -->
+  <div class="page" id="page-capital">
+    <div class="breadcrumb">工具包总览 <span>/</span> <span class="current">上市后资本运作</span></div>
+    <div class="section-header">
+      <div class="section-tag">模块 02</div>
+      <div class="section-title">上市后资本运作模块</div>
+      <div class="section-subtitle">再融资、增持、并购重组、股价维稳，实现产业协同增长</div>
+    </div>
+
+    <!-- Cap Hero Banner -->
+    <div class="cap-hero">
+      <div class="cap-hero-tag">POST-IPO CAPITAL OPERATION</div>
+      <div class="cap-hero-title">上市后资本运作 · 四大核心工具</div>
+      <div class="cap-hero-sub">围绕股权运作与产业扩张，提供合规高效的市值管理方案，帮助上市公司把握资本市场节奏，实现价值增长与资本市场协同共振。</div>
+      <div class="cap-kpi-row">
+        <div class="cap-kpi">
+          <div class="cap-kpi-num">4</div>
+          <div class="cap-kpi-label">核心工具模块</div>
+        </div>
+        <div class="cap-kpi">
+          <div class="cap-kpi-num">12+</div>
+          <div class="cap-kpi-label">合规操作策略</div>
+        </div>
+        <div class="cap-kpi">
+          <div class="cap-kpi-num">全流程</div>
+          <div class="cap-kpi-label">监管合规覆盖</div>
+        </div>
+        <div class="cap-kpi">
+          <div class="cap-kpi-num">实时</div>
+          <div class="cap-kpi-label">市值影响建模</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav" id="capTabNav">
+      <button class="tab-btn active" onclick="showCapTab('equity',this)">
+        <span class="tab-icon">📊</span>股权增持
+      </button>
+      <button class="tab-btn" onclick="showCapTab('refi',this)">
+        <span class="tab-icon">💰</span>再融资
+      </button>
+      <button class="tab-btn" onclick="showCapTab('ma',this)">
+        <span class="tab-icon">🔀</span>并购重组
+      </button>
+      <button class="tab-btn" onclick="showCapTab('stable',this)">
+        <span class="tab-icon">🛡️</span>股价维稳
+      </button>
+    </div>
+
+    <!-- ── TAB A: 股权增持 ── -->
+    <div id="cap-tab-equity" class="tab-content active">
+      <div class="tab-section-label">合规窗口期规则</div>
+      <div class="info-card-row">
+        <div class="info-card">
+          <div class="info-card-icon">🚫</div>
+          <div class="info-card-title">定期报告窗口封闭期</div>
+          <div class="info-card-body">年报/季报披露前 <strong style="color:var(--gold)">30 日</strong> 内禁止增持；半年报披露前 <strong style="color:var(--gold)">15 日</strong> 内禁止。</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">⚖️</div>
+          <div class="info-card-title">内幕信息知情期</div>
+          <div class="info-card-body">知悉重大内幕信息期间，至信息公开后 <strong style="color:var(--gold)">2 个交易日</strong> 前，不得增持。</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">📋</div>
+          <div class="info-card-title">增持计划披露义务</div>
+          <div class="info-card-body">拟增持 <strong style="color:var(--gold)">≥1%</strong> 须提前公告计划；增持后 <strong style="color:var(--gold)">2 日</strong> 内披露权益变动报告。</div>
+        </div>
+      </div>
+
+      <div class="tab-section-label">持股比例监控仪表盘（示例）</div>
+      <div class="progress-row" style="background:var(--navy-card);border:1px solid var(--navy-line);border-radius:var(--radius);padding:20px 24px;margin-bottom:24px;">
+        <div>
+          <div class="progress-item-label"><span>实际控制人持股比例</span><span style="color:var(--gold)">38.5%</span></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:38.5%"></div></div>
+        </div>
+        <div>
+          <div class="progress-item-label"><span>一致行动人合计持股</span><span style="color:var(--gold)">52.1%</span></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:52.1%"></div></div>
+        </div>
+        <div>
+          <div class="progress-item-label"><span>本次计划增持上限</span><span style="color:var(--accent-teal)">2.0%</span></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:2%;background:linear-gradient(90deg,var(--accent-teal),#2BBFAB88)"></div></div>
+        </div>
+        <div>
+          <div class="progress-item-label"><span>流通股中散户持仓估算</span><span style="color:var(--text-sec)">29.4%</span></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:29.4%;background:linear-gradient(90deg,var(--navy-line),var(--text-mute))"></div></div>
+        </div>
+      </div>
+
+      <div class="tab-section-label">增持操作五步流程</div>
+      <div class="process-flow">
+        <div class="proc-step">
+          <div class="proc-circle">📅</div>
+          <div class="proc-label">合规窗口确认</div>
+          <div class="proc-sub">核查封闭期、内幕信息状态</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">📝</div>
+          <div class="proc-label">增持计划公告</div>
+          <div class="proc-sub">≥1% 提前披露计划书</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">💹</div>
+          <div class="proc-label">交易方式选择</div>
+          <div class="proc-sub">大宗 / 二级市场择优</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">🏦</div>
+          <div class="proc-label">资金安排落地</div>
+          <div class="proc-sub">自有资金 / 质押融资</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">📢</div>
+          <div class="proc-label">权益变动披露</div>
+          <div class="proc-sub">2 日内完成信息披露</div>
+        </div>
+      </div>
+
+      <div class="tab-section-label">交易方式对比</div>
+      <table class="compare-table" style="margin-bottom:0">
+        <thead>
+          <tr><th>维度</th><th>🏢 大宗交易增持</th><th>📈 二级市场增持</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>成交效率</td><td>单笔规模大，快速建仓</td><td>分散买入，节奏灵活</td></tr>
+          <tr><td>价格影响</td><td>价格折扣 1–5%，不冲击市价</td><td>可能推高股价，信号效应强</td></tr>
+          <tr><td>适用场景</td><td>控股股东大额增持、股东退出接盘</td><td>中小规模增持、持续释放利好</td></tr>
+          <tr><td>合规披露</td><td>次一交易日披露大宗成交</td><td>触发5%/1%阈值时披露</td></tr>
+          <tr><td>市值信号</td><td>短期刺激效果较弱</td><td>持续增持形成强烈看多信号</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── TAB B: 再融资 ── -->
+    <div id="cap-tab-refi" class="tab-content">
+      <div class="tab-section-label">定增 vs 配股 核心差异</div>
+      <table class="compare-table" style="margin-bottom:24px">
+        <thead>
+          <tr><th>维度</th><th>🔵 非公开发行（定增）</th><th>🟢 公开增发（配股）</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>发行对象</td><td>不超过35名特定投资者</td><td>现有股东按比例认购</td></tr>
+          <tr><td>定价基准</td><td>不低于定价基准日前20日均价80%</td><td>不低于公告前20日均价70%</td></tr>
+          <tr><td>锁定期</td><td>控股股东：36个月；其他：18个月</td><td>无强制锁定期</td></tr>
+          <tr><td>审批周期</td><td>证监会核准，约6–12个月</td><td>证监会核准，约4–8个月</td></tr>
+          <tr><td>稀释影响</td><td>对原股东稀释较大</td><td>原股东可等比认购，稀释可控</td></tr>
+          <tr><td>适用情形</td><td>引入战略投资者、大额融资</td><td>资金需求适中、巩固股东关系</td></tr>
+        </tbody>
+      </table>
+
+      <div class="tab-section-label">募集资金用途场景</div>
+      <div class="info-card-row">
+        <div class="info-card">
+          <div class="info-card-icon">🏗️</div>
+          <div class="info-card-title">产能扩张类</div>
+          <div class="info-card-body">新建/扩建生产线，支撑主营业务规模提升，业绩增长逻辑最为清晰，监管审批顺畅。</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">🔬</div>
+          <div class="info-card-title">研发投入类</div>
+          <div class="info-card-body">布局新技术赛道，适合科技型企业，需配合研发里程碑规划，提升资本市场想象空间。</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">🏢</div>
+          <div class="info-card-title">补充流动资金</div>
+          <div class="info-card-body">改善现金流结构，一般占募集总额不超过 <strong style="color:var(--gold)">30%</strong>，需有合理财务测算支撑。</div>
+        </div>
+      </div>
+
+      <div class="tab-section-label">定价机制与择时策略</div>
+      <div class="info-card-row2">
+        <div class="block-tip">
+          <div class="block-tip-title">✦ 最优定价窗口特征</div>
+          <ul>
+            <li>股价处于近 12 个月相对高位区间，降低稀释比例</li>
+            <li>市场情绪偏多，行业板块估值扩张周期</li>
+            <li>公司近期无重大负面信息，信披窗口清洁</li>
+            <li>再融资预案公告后平均涨幅正向，发行成功率高</li>
+          </ul>
+        </div>
+        <div class="block-warning">
+          <div class="block-warning-title">⚠ 定增常见风险点</div>
+          <ul>
+            <li>定价基准日选择不当导致发行折价过大，股东权益受损</li>
+            <li>业绩承诺激进，实际完成率低引发投资者诉讼</li>
+            <li>募投项目进度滞后，产生大额闲置募集资金</li>
+            <li>锁定期届满大量减持，股价承压</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="tab-section-label">监管审批全流程</div>
+      <div class="process-flow">
+        <div class="proc-step">
+          <div class="proc-circle">📋</div>
+          <div class="proc-label">董事会预案</div>
+          <div class="proc-sub">方案设计与合规审查</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">🗳️</div>
+          <div class="proc-label">股东大会审议</div>
+          <div class="proc-sub">需2/3以上通过</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">🏛️</div>
+          <div class="proc-label">证监会申报</div>
+          <div class="proc-sub">提交注册材料</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">✅</div>
+          <div class="proc-label">注册生效</div>
+          <div class="proc-sub">12个月内完成发行</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">💰</div>
+          <div class="proc-label">发行募资</div>
+          <div class="proc-sub">路演定价·资金到位</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB C: 并购重组 ── -->
+    <div id="cap-tab-ma" class="tab-content">
+      <div class="tab-section-label">目标筛选四象限矩阵</div>
+      <div class="quadrant-wrap">
+        <div class="quadrant">
+          <div class="quad-cell">
+            <div class="quad-label">优先推进</div>
+            <div class="quad-title">战略协同 × 估值合理</div>
+            <div class="quad-desc">主业延伸型标的，PE/PS 估值处于行业中枢以下，整合难度低，协同效应强。</div>
+          </div>
+          <div class="quad-cell">
+            <div class="quad-label">择机介入</div>
+            <div class="quad-title">战略协同 × 估值偏高</div>
+            <div class="quad-desc">赛道战略价值高，可通过分阶段支付或业绩对赌降低实际支付成本。</div>
+          </div>
+          <div class="quad-cell">
+            <div class="quad-label">财务驱动</div>
+            <div class="quad-title">弱协同 × 估值合理</div>
+            <div class="quad-desc">纯财务并购，注重现金流贡献与短期 EPS 增厚，需设置严格退出条款。</div>
+          </div>
+          <div class="quad-cell">
+            <div class="quad-label">规避区间</div>
+            <div class="quad-title">弱协同 × 估值偏高</div>
+            <div class="quad-desc">市值摊薄风险大，商誉减值概率高，资本市场接受度低，应审慎回避。</div>
+          </div>
+        </div>
+        <div class="quadrant-axes">
+          <div class="quad-axis-label">← 高估值</div>
+          <div class="quad-axis-label">低估值 →</div>
+        </div>
+      </div>
+
+      <div class="tab-section-label">交易结构三种模式</div>
+      <div class="info-card-row">
+        <div class="info-card">
+          <div class="info-card-val">股份支付</div>
+          <div class="info-card-title">发行股份购买资产</div>
+          <div class="info-card-body">以上市公司股份作为对价，不消耗现金，适合大额并购；但稀释现有股东，需股东大会审议，审批周期长。</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-val">现金支付</div>
+          <div class="info-card-title">现金收购</div>
+          <div class="info-card-body">流程最简洁，无稀释效应；但消耗现金储备，适合中小规模收购，可搭配并购贷款安排。</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-val">混合对价</div>
+          <div class="info-card-title">股份 + 现金组合</div>
+          <div class="info-card-body">兼顾双方诉求，灵活分配风险；典型结构为 70% 股份 + 30% 现金，并附业绩对赌条款。</div>
+        </div>
+      </div>
+
+      <div class="tab-section-label">并购重组里程碑时间轴</div>
+      <div class="process-flow">
+        <div class="proc-step">
+          <div class="proc-circle">🔍</div>
+          <div class="proc-label">标的筛选</div>
+          <div class="proc-sub">战略匹配·初步财务评估</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">🤝</div>
+          <div class="proc-label">意向谈判</div>
+          <div class="proc-sub">签署保密协议·框架协议</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">🔬</div>
+          <div class="proc-label">尽职调查</div>
+          <div class="proc-sub">财务·法律·业务全面尽调</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">📜</div>
+          <div class="proc-label">方案报批</div>
+          <div class="proc-sub">证监会/交易所审核</div>
+        </div>
+        <div class="proc-step">
+          <div class="proc-circle">🔗</div>
+          <div class="proc-label">整合落地</div>
+          <div class="proc-sub">管理·文化·业务整合</div>
+        </div>
+      </div>
+
+      <div class="tab-section-label">并购市值影响预测模型</div>
+      <div class="info-card-row2">
+        <div class="info-card">
+          <div class="info-card-icon">📈</div>
+          <div class="info-card-title">短期市值效应（公告日 ±30 天）</div>
+          <div class="info-card-body">
+            战略协同型并购平均超额收益率约 <strong style="color:var(--gold)">8–15%</strong>；<br>
+            强制停牌复牌后板块轮动效应明显；<br>
+            市场反应与并购溢价率负相关，溢价超 50% 时市场通常负面反应。
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">📊</div>
+          <div class="info-card-title">中长期价值创造（1–3 年）</div>
+          <div class="info-card-body">
+            EPS 增厚效应通常在并表后第 2 年显现；<br>
+            商誉占净资产比例超过 <strong style="color:var(--gold)">40%</strong> 时减值风险显著上升；<br>
+            业绩对赌达成率与整合质量是市值持续修复的核心驱动。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB D: 股价维稳 ── -->
+    <div id="cap-tab-stable" class="tab-content">
+      <div class="tab-section-label">回购方案设计要素</div>
+      <div class="info-card-row">
+        <div class="info-card">
+          <div class="info-card-icon">💵</div>
+          <div class="info-card-title">回购规模</div>
+          <div class="info-card-body">通常设定 <strong style="color:var(--gold)">0.5%–3%</strong> 总股本区间；金额上下限清晰，确保方案可执行性与市场预期管理。</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">⏰</div>
+          <div class="info-card-title">执行时限</div>
+          <div class="info-card-body">通常为董事会通过后 <strong style="color:var(--gold)">12 个月</strong> 内完成；需每月披露回购进度，节奏需配合市场状态灵活调整。</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">🎯</div>
+          <div class="info-card-title">价格上限设定</div>
+          <div class="info-card-body">回购价格上限通常为当前市价的 <strong style="color:var(--gold)">110–130%</strong>，留有操作空间，同时向市场传递底部支撑信心。</div>
+        </div>
+      </div>
+
+      <div class="tab-section-label">三大维稳策略对比</div>
+      <table class="compare-table" style="margin-bottom:24px">
+        <thead>
+          <tr><th>策略</th><th>🔄 公司股份回购</th><th>📊 大股东增持</th><th>🏦 设立市值管理基金</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>资金来源</td><td>公司自有 / 借款资金</td><td>大股东自有资金</td><td>多方出资，专项基金</td></tr>
+          <tr><td>市场信号</td><td>公司看好自身价值</td><td>控股方强烈信心背书</td><td>系统性维稳承诺</td></tr>
+          <tr><td>合规要求</td><td>回购专户·逐月披露</td><td>窗口期·比例限制</td><td>备案管理·基金合规</td></tr>
+          <tr><td>效果时效</td><td>短期情绪稳定</td><td>中期支撑</td><td>长期系统性护盘</td></tr>
+          <tr><td>EMO建议场景</td><td>股价大幅偏离价值时优先启动</td><td>配合回购同步释放信号</td><td>市值超50亿规模企业</td></tr>
+        </tbody>
+      </table>
+
+      <div class="tab-section-label">合规红线 · 绝对禁止事项</div>
+      <div class="block-warning">
+        <div class="block-warning-title">⛔ 合规红线——违反即触发监管处罚</div>
+        <ul>
+          <li>封闭期内（年报前30日/半年报前15日）实施任何形式的增持或回购</li>
+          <li>知悉内幕信息期间委托他人代为买入，规避信息披露义务</li>
+          <li>以"市值管理"为名协同市场中介机构操纵股价，违反《证券法》第55条</li>
+          <li>回购资金来源违规（如挪用募集资金用于股份回购）</li>
+          <li>大股东增持触发要约收购比例线（30%）未履行要约义务</li>
+        </ul>
+      </div>
+
+      <div class="tab-section-label">触发条件与执行节奏</div>
+      <table class="compare-table" style="margin-bottom:0">
+        <thead>
+          <tr><th>触发情形</th><th>建议响应动作</th><th>时间窗口</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>股价较近期高点下跌 ≥30%</td><td>启动股份回购预案 + 大股东增持公告</td><td>3–5 个交易日内</td></tr>
+          <tr><td>市净率跌破 1.0x</td><td>披露回购底价支撑，主动引导价值回归</td><td>即时响应</td></tr>
+          <tr><td>半年度市值考核触线</td><td>会议纪要确认维稳计划，报告期内完成初步动作</td><td>30 日内</td></tr>
+          <tr><td>大股东质押比例 ≥80%</td><td>协商补充质押或场外增信措施，避免平仓引发踩踏</td><td>立即评估</td></tr>
+          <tr><td>重大利空舆情发酵</td><td>联合 IR 部门发布澄清公告 + 高管路演安抚机构</td><td>24 小时内</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: NORMAL ════ -->
+  <div class="page" id="page-normal">
+    <div class="breadcrumb">工具包总览 <span>/</span> <span class="current">常态化市值管理运营</span></div>
+    <div class="section-header">
+      <div class="section-tag">模块 03</div>
+      <div class="section-title">常态化市值管理运营</div>
+      <div class="section-subtitle">长期市值维护、合规运营、IR 体系建设</div>
+      <div class="section-desc">为上市公司提供持续运营服务，构建长期稳定的市值管理机制，提升资本市场核心竞争力。</div>
+    </div>
+
+    <div class="module-header">
+      <div class="module-header-icon">🔄</div>
+      <div class="module-header-body">
+        <div class="module-header-tag">ONGOING MARKET VALUE OPERATION</div>
+        <div class="module-header-title">常态化市值管理运营</div>
+        <div class="module-header-sub">长期市值维护 · 合规运营 · IR 体系建设</div>
+        <div class="module-header-desc">
+          快速适应资本市场，强化专业能力，帮助上市公司系统建立投资者关系管理体系，
+          构建企业 — 股东 — 员工利益长期一致的市值管理闭环。
+        </div>
+      </div>
+    </div>
+
+    <div class="submodule-grid">
+      <div class="submodule-panel">
+        <div class="submodule-name">📣 常规市值管理运营</div>
+        <div class="submodule-value">快速适应资本市场，强化专业能力</div>
+        <ul class="submodule-list">
+          <li>投资者关系管理（IR）全流程运营</li>
+          <li>舆情监控与合规公告撰写</li>
+          <li>媒体关系与舆情保护机制</li>
+          <li>IR 矩阵搭建与流量标杆打造</li>
+        </ul>
+      </div>
+      <div class="submodule-panel">
+        <div class="submodule-name">🎯 股权激励与综合市值管理</div>
+        <div class="submodule-value">绑定员工与股东长期利益</div>
+        <ul class="submodule-list">
+          <li>适配企业阶段的激励方案设计</li>
+          <li>信披披露与市值价值联动</li>
+          <li>企业 — 股东 — 员工利益一致化</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="compare-table-wrap">
+      <div class="compare-table-title">服务关键指标</div>
+      <table class="compare-table">
+        <thead>
+          <tr><th>服务维度</th><th>核心内容</th><th>产出物</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>IR 运营</td><td>投资者关系全链路管理</td><td>IR 年度报告 + 路演支持</td></tr>
+          <tr><td>舆情监控</td><td>实时监控 + 危机响应预案</td><td>舆情周报 + 应对方案</td></tr>
+          <tr><td>合规公告</td><td>定期公告撰写与审核辅助</td><td>公告草稿 + 合规清单</td></tr>
+          <tr><td>股权激励</td><td>激励方案设计 + 信披联动</td><td>股权激励方案书</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: ADVANTAGE ════ -->
+  <div class="page" id="page-advantage">
+    <div class="breadcrumb">工具包总览 <span>/</span> <span class="current">核心优势与适用场景</span></div>
+    <div class="section-header">
+      <div class="section-tag">模块 04</div>
+      <div class="section-title">核心优势与适用场景</div>
+      <div class="section-subtitle">工具包价值总结</div>
+    </div>
+
+    <div class="advantage-grid">
+      <div class="advantage-card">
+        <div class="advantage-card-title"><span class="adv-icon">🔑</span>核心优势</div>
+        <ul class="advantage-list">
+          <li><span class="adv-bullet">◆</span>
+            <span><strong style="color:var(--text-pri)">全生命周期覆盖：</strong>IPO → 资本运作 → 长期维护，三段一体化服务体系</span>
+          </li>
+          <li><span class="adv-bullet">◆</span>
+            <span><strong style="color:var(--text-pri)">场景化解决方案：</strong>按需定制服务组合，精准匹配企业发展阶段</span>
+          </li>
+          <li><span class="adv-bullet">◆</span>
+            <span><strong style="color:var(--text-pri)">强合规性：</strong>全程符合资本市场监管要求，降低合规风险</span>
+          </li>
+          <li><span class="adv-bullet">◆</span>
+            <span><strong style="color:var(--text-pri)">产业结合：</strong>实业发展与市值提升双向驱动，形成协同效应</span>
+          </li>
+        </ul>
+      </div>
+      <div class="advantage-card">
+        <div class="advantage-card-title"><span class="adv-icon">🎯</span>适用企业</div>
+        <ul class="advantage-list">
+          <li><span class="adv-bullet">→</span>
+            <span><strong style="color:var(--text-pri)">拟 IPO 企业：</strong>优化发行定价与择时，提升 IPO 成功率</span>
+          </li>
+          <li><span class="adv-bullet">→</span>
+            <span><strong style="color:var(--text-pri)">有再融资 / 增持需求的上市公司，</strong>需要合规、低成本方案</span>
+          </li>
+          <li><span class="adv-bullet">→</span>
+            <span><strong style="color:var(--text-pri)">计划产业并购、扩张赛道的上市公司</strong></span>
+          </li>
+          <li><span class="adv-bullet">→</span>
+            <span><strong style="color:var(--text-pri)">新上市公司：</strong>缺乏 IR 与市值管理经验，需要专业团队支持</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="compare-table-wrap" style="margin-top:12px">
+      <div class="compare-table-title">工具包 · 核心价值矩阵</div>
+      <table class="compare-table">
+        <thead>
+          <tr><th>服务维度</th><th>传统方式痛点</th><th>EMO 工具包方案</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>IPO 定价</td><td>依赖承销商单一视角，破发风险高</td><td>独立研究 + 二级市场择时双轮驱动</td></tr>
+          <tr><td>再融资</td><td>定价随意、信息不对称，稀释过度</td><td>精准定价窗口 + 合规方案保障</td></tr>
+          <tr><td>IR 运营</td><td>临时应付，缺乏体系化运营</td><td>全年 IR 矩阵 + 实时舆情监控</td></tr>
+          <tr><td>并购重组</td><td>标的甄别难，市值冲击难以预判</td><td>专业筛选 + 市值影响预测模型</td></tr>
+          <tr><td>服务连续性</td><td>分段割裂，缺乏跨阶段协同</td><td>全生命周期一体化，数据贯穿始终</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: COMPARE ════ -->
+  <div class="page" id="page-compare">
+    <div class="breadcrumb">工具包总览 <span>/</span> <span class="current">阶段对比总览</span></div>
+    <div class="section-header">
+      <div class="section-tag">横向比较</div>
+      <div class="section-title">三大阶段 · 横向对比</div>
+      <div class="section-subtitle">直观了解各阶段服务边界与核心输出</div>
+    </div>
+
+    <div class="compare-table-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th style="width:140px">对比维度</th>
+            <th>📈 IPO 市值管理</th>
+            <th>💼 上市后资本运作</th>
+            <th>🔄 常态化管理运营</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>服务阶段</td>
+            <td>拟上市 / 上市前</td>
+            <td>上市后 1 ～ 3 年</td>
+            <td>全周期持续服务</td>
+          </tr>
+          <tr>
+            <td>核心目标</td>
+            <td>提升 IPO 成功率与发行价</td>
+            <td>再融资 & 并购，市值跨越增长</td>
+            <td>稳定市值，提升投资者信心</td>
+          </tr>
+          <tr>
+            <td>核心服务</td>
+            <td>行研 · 估值 · 择时 · 路演</td>
+            <td>增持 · 定增 · 并购 · 重组</td>
+            <td>IR · 舆情 · 公告 · 激励</td>
+          </tr>
+          <tr>
+            <td>合规重点</td>
+            <td>IPO 信披 · 定价合规</td>
+            <td>监管审批 · 增持窗口合规</td>
+            <td>持续信披 · 公告合规</td>
+          </tr>
+          <tr>
+            <td>核心产出</td>
+            <td>研究报告 / 路演材料 / 定价方案</td>
+            <td>融资方案 / 并购报告 / 重组方案</td>
+            <td>IR 体系 / 舆情报告 / 激励方案</td>
+          </tr>
+          <tr>
+            <td>服务周期</td>
+            <td>6 ～ 12 个月（项目制）</td>
+            <td>按项目，3 ～ 9 个月</td>
+            <td>年度合同，持续运营</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="timeline-wrap" style="margin-top:36px">
+      <div class="timeline-title">服务阶段 · 全景路线图</div>
+      <div class="timeline">
+        <div class="tl-phase" onclick="showPage('ipo', document.querySelector('[data-page=ipo]'))">
+          <div class="tl-num">PHASE 01</div>
+          <div class="tl-name">IPO 市值管理</div>
+          <div class="tl-sub">行研 · 估值 · 择时 · 路演</div>
+          <div class="tl-arrow"></div>
+        </div>
+        <div class="tl-phase" onclick="showPage('capital', document.querySelector('[data-page=capital]'))">
+          <div class="tl-num">PHASE 02</div>
+          <div class="tl-name">上市后资本运作</div>
+          <div class="tl-sub">增持 · 定增 · 并购 · 重组</div>
+          <div class="tl-arrow"></div>
+        </div>
+        <div class="tl-phase" onclick="showPage('normal', document.querySelector('[data-page=normal]'))">
+          <div class="tl-num">PHASE 03</div>
+          <div class="tl-name">常态化管理运营</div>
+          <div class="tl-sub">IR · 舆情 · 公告 · 激励</div>
+          <div class="tl-arrow"></div>
+        </div>
+        <div class="tl-phase" onclick="showPage('advantage', document.querySelector('[data-page=advantage]'))">
+          <div class="tl-num">SUMMARY</div>
+          <div class="tl-name">核心优势 & 场景</div>
+          <div class="tl-sub">工具包价值总结</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════ PAGE: RADAR ════ -->
+  <div class="page" id="page-radar">
+    <!-- Scanning state -->
+    <div id="radarScanState">
+      <div class="scan-overlay">
+        <div class="radar-dish radar-dish-lg">
+          <div class="radar-ring radar-ring-1"></div>
+          <div class="radar-ring radar-ring-2"></div>
+          <div class="radar-ring radar-ring-3"></div>
+          <div class="radar-line radar-line-h"></div>
+          <div class="radar-line radar-line-v"></div>
+          <div class="radar-glow"></div>
+          <div class="radar-arm"></div>
+          <div class="radar-dot radar-dot-1"></div>
+          <div class="radar-dot radar-dot-2"></div>
+          <div class="radar-dot radar-dot-3"></div>
+          <div class="radar-center"></div>
+        </div>
+        <div class="scan-company" id="scanCompanyName">正在扫描...</div>
+        <div class="scan-subtitle">EMO 探嗅雷达 · 并购需求智能分析引擎</div>
+        <div class="scan-bar-wrap">
+          <div class="scan-bar" id="scanBar"></div>
+        </div>
+        <div class="scan-steps" id="scanSteps"></div>
+      </div>
+    </div>
+    <!-- Result state — populated by JS -->
+    <div id="radarResultState" style="display:none"></div>
+  </div>
+
+</main>
+
+<!-- ─── FOOTER ─── -->
+<footer class="footer">
+  <div class="footer-left">
+    <span>EMO · 企业家管理办公室</span>
+  </div>
+  <div class="footer-right">MarketValueManager v1.1 · Demo 演示版 · 仅供内部汇报使用</div>
+</footer>
+
+<!-- ─── JavaScript ─── -->
+<script>
+  // ── Theme toggle
+  function toggleTheme() {
+    const isLight = document.documentElement.classList.toggle('light');
+    document.getElementById('themeIcon').textContent  = isLight ? '🌙' : '☀️';
+    document.getElementById('themeLabel').textContent = isLight ? '深夜' : '明亮';
+    localStorage.setItem('emo-theme', isLight ? 'light' : 'dark');
+  }
+  // Restore saved theme preference
+  (function () {
+    if (localStorage.getItem('emo-theme') === 'light') {
+      document.documentElement.classList.add('light');
+      // DOM is ready (script is at bottom of body)
+      document.getElementById('themeIcon').textContent  = '🌙';
+      document.getElementById('themeLabel').textContent = '深夜';
+    }
+  })();
+
+  // ── Date
+  const d = new Date();
+  document.getElementById('headerDate').textContent =
+    d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
+
+  // ── Page switch
+  function showPage(pageId, navEl) {
+    // hide all pages
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    // show target
+    const target = document.getElementById('page-' + pageId);
+    if (target) { target.classList.add('active'); window.scrollTo({top:0, behavior:'smooth'}); }
+
+    // update sidebar active
+    document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+    const sidebarLink = document.querySelector('.sidebar-item[data-page="' + pageId + '"]');
+    if (sidebarLink) sidebarLink.classList.add('active');
+  }
+
+  // ── Capital Tab switch
+  function showCapTab(tabId, btnEl) {
+    // hide all tab-content inside page-capital
+    document.querySelectorAll('#page-capital .tab-content').forEach(t => t.classList.remove('active'));
+    const target = document.getElementById('cap-tab-' + tabId);
+    if (target) target.classList.add('active');
+
+    // update tab-btn active state
+    document.querySelectorAll('#capTabNav .tab-btn').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+
+    // update sidebar sub-item active state
+    const labelMap = { equity:'📊 股权增持', refi:'💰 再融资', ma:'🔀 并购重组', stable:'🛡️ 股价维稳' };
+    document.querySelectorAll('#capSubMenu .sidebar-sub-item').forEach(el => {
+      el.classList.toggle('active', el.textContent.trim() === labelMap[tabId]);
+    });
+  }
+
+  // ── Capital sidebar expand/collapse
+  function toggleCapSub(forceOpen) {
+    const sub = document.getElementById('capSubMenu');
+    const btn = document.getElementById('capExpandBtn');
+    const isOpen = sub.classList.contains('open');
+    if (forceOpen === true || !isOpen) {
+      sub.classList.add('open');
+      btn.style.transform = 'rotate(90deg)';
+    } else {
+      sub.classList.remove('open');
+      btn.style.transform = '';
+    }
+  }
+
+  // ── Radar Mock Database
+  var RADAR_DB = {
+    '比亚迪': {
+      profile: { industry:'新能源汽车 / 动力电池', mcap:'约7,800亿元', stage:'行业龙头', hq:'深圳' },
+      summary: ['电池原材料成本占整车成本逾40%，垂直整合压力持续强烈', '智能驾驶感知算法与SoC芯片能力存在显著短板，L3+布局迫切', '欧洲反补贴关税倒逼本地化，海外工厂与充电网络资产具有稀缺战略价值'],
+      drivers: [
+        { icon:'⛏️', title:'资源端卡位', score:94, desc:'锂矿及正极材料自供率不足20%，原材料价格波动直接冲击毛利率超6个百分点。并购锂矿或一体化材料企业是平滑P&L的最高优先级路径。' },
+        { icon:'🤖', title:'智能化补课', score:88, desc:'自动驾驶感知算法与车规级SoC芯片缺口显著。华为/Momenta合作路径验证了外部技术引入可行性，当前估值窗口下并购时机成熟。' },
+        { icon:'🌍', title:'海外本地化', score:81, desc:'欧洲关税壁垒倒逼本地生产，收购具备欧盟认证与本地渠道的储能或充电运营商，是最具效率的市场准入路径。' }
+      ],
+      chain: [
+        { dir:'上游', theme:'锂矿 & 正负极材料', reason:'锂价周期性波动对P&L影响超30%，资源端并购可锁定长期成本结构', targets:['智利锂卤水资产','正极材料龙头企业','高端隔膜企业'] },
+        { dir:'横向', theme:'智能驾驶芯片 & 算法', reason:'车规级SoC与感知算法为L3+落地核心瓶颈，自研路径周期过长达不到竞争要求', targets:['国产智驾SoC公司','视觉感知算法企业','Lidar传感器厂商'] },
+        { dir:'下游', theme:'充电基础设施 & 储能', reason:'充电网络覆盖率直接影响终端销量决策，欧洲头部充电运营商具有稀缺流量入口价值', targets:['欧洲充电桩运营商','工商业储能系统商','换电联盟核心标的'] }
+      ],
+      techThemes: [
+        { tag:'固态电池', fit:90, desc:'下一代储能核心赛道，日韩已领跑，比亚迪存在追赶压力，前沿实验室并购可锁定技术主导权' },
+        { tag:'车规级芯片', fit:85, desc:'功率器件、MCU国产替代空间巨大，自研+并购双轨推进是最优策略' },
+        { tag:'智能座舱HMI', fit:77, desc:'用户体验差异化的关键，HMI软件与OS集成能力亟需外部引入' },
+        { tag:'V2G能源管理', fit:68, desc:'车网互联政策落地预期增强，能源管理平台并购战略价值逐步显现' }
+      ],
+      targets: [
+        { name:'南美锂矿资产包', type:'资源并购', fit:93, capRange:'200–600亿', timeframe:'12–18个月', reason:'锁定原材料成本，对抗锂价上行周期，EPS增厚效应在并表后第2年显现，财务模型支撑IRR≥15%。' },
+        { name:'国产智驾SoC初创', type:'技术并购', fit:86, capRange:'30–100亿', timeframe:'6–12个月', reason:'芯片内化可降低智驾BOM成本约15–20%，同时建立车规级芯片研发护城河。' },
+        { name:'欧洲充电运营商', type:'市场并购', fit:79, capRange:'50–120亿', timeframe:'18–24个月', reason:'规避欧盟反补贴关税，以本地网络资产换取市场准入资质与政策友好度。' }
+      ]
+    },
+    '宁德时代': {
+      profile: { industry:'动力电池 / 储能系统', mcap:'约9,200亿元', stage:'全球龙头扩张期', hq:'宁德' },
+      summary: ['全球动力电池市占率约37%，增速边际放缓，新增长极布局刻不容缓', '固态电池技术路线竞争白热化，日韩企业追赶态势明显，技术卡位窗口收窄', '储能赛道年复合增速超35%，EMS软件平台化是估值重构的关键变量'],
+      drivers: [
+        { icon:'⚡', title:'储能规模扩张', score:91, desc:'全球储能市场年复合增速超35%，系统集成商与EMS软件企业是高优先级标的，可快速复制现有电池供应链优势，打开第二增长曲线。' },
+        { icon:'🔬', title:'下一代技术卡位', score:87, desc:'固态电池量产窗口预计在2027–2030年，前沿材料实验室与电解质企业的早期并购可锁定技术主导权，防御日韩竞对同路径追赶。' },
+        { icon:'⛏️', title:'资源全球布局', score:83, desc:'锂、钴、镍上游争夺激烈，南美/非洲矿业资产并购受地缘政治影响窗口持续收窄，时机紧迫性在上升。' }
+      ],
+      chain: [
+        { dir:'上游', theme:'锂 / 钴 / 镍矿业资产', reason:'三元与铁锂双技术路线押注，矿业并购可降低大宗商品价格传导风险', targets:['南美锂卤水资产','刚果钴矿联合体','印尼镍矿资源包'] },
+        { dir:'横向', theme:'固态电解质 & 前沿材料', reason:'硫化物/氧化物电解质技术各有优劣，早期布局决定下一代技术话语权', targets:['固态电解质初创','正极材料研发平台','界面改性技术公司'] },
+        { dir:'下游', theme:'储能EMS & 系统集成', reason:'软件定义储能价值，EMS数据平台形成客户粘性壁垒，商业模式向SaaS迁移', targets:['工商业储能系统商','EMS软件企业','虚拟电厂运营商'] }
+      ],
+      techThemes: [
+        { tag:'固态电池', fit:93, desc:'第一梯队追赶压力强，麒麟电池迭代窗口约3年，并购前沿实验室为最快路径' },
+        { tag:'储能EMS', fit:88, desc:'软件化收入占比提升是估值重构关键，平台型EMS企业稀缺且战略价值极高' },
+        { tag:'钠离子电池', fit:82, desc:'低速车与储能场景渗透加速，产业链材料企业估值处于周期低位窗口期' },
+        { tag:'氢燃料电池', fit:61, desc:'重卡场景政策推动，氢电协同布局可覆盖商用车细分赛道' }
+      ],
+      targets: [
+        { name:'固态电解质前沿公司', type:'技术并购', fit:92, capRange:'20–80亿', timeframe:'6–12个月', reason:'技术窗口期内卡位，防止日韩竞对以相同路径完成技术锁定，战略防御价值高于财务收益。' },
+        { name:'南美锂资源包', type:'资源并购', fit:88, capRange:'300–800亿', timeframe:'18–30个月', reason:'全周期锂成本控制，锂价上行周期中成本优势可显著扩大毛利率护城河。' },
+        { name:'储能EMS平台企业', type:'平台并购', fit:84, capRange:'50–150亿', timeframe:'12–18个月', reason:'软件化收入提升估值乘数，储能系统毛利率向SaaS型商业模式靠拢，并表后EPS即时增厚。' }
+      ]
+    },
+    '迈瑞医疗': {
+      profile: { industry:'医疗器械 / 体外诊断', mcap:'约3,200亿元', stage:'国际化高速扩张期', hq:'深圳' },
+      summary: ['国内高端医疗器械国产替代进入加速期，政策红利显著', '海外营收占比约45%，但品牌溢价与渠道深度仍落后跨国龙头', 'IVD体外诊断赛道战略缺口明显，与现有监护/超声业务具有高度协同价值'],
+      drivers: [
+        { icon:'🌍', title:'国际品牌升级', score:89, desc:'在高端市场（美欧日）品牌认知度与美敦力/西门子等存在明显差距，收购具有品牌溢价的区域性医疗企业可快速提升目标客户信任度。' },
+        { icon:'🧬', title:'IVD赛道补强', score:85, desc:'体外诊断产品线在化学发光、分子诊断领域布局相对薄弱，与现有监护/超声设备构成销售协同的IVD企业为首要并购标的。' },
+        { icon:'🏥', title:'院外场景延伸', score:77, desc:'基层医疗、家用监测与远程诊断市场爆发，数字健康平台与家用设备企业的战略价值正在快速显现。' }
+      ],
+      chain: [
+        { dir:'横向', theme:'IVD体外诊断系列', reason:'化学发光与分子诊断是医院采购高频品类，与现有设备捆绑销售可显著提升客单价与客户锁定率', targets:['化学发光试剂企业','基因测序仪公司','即时检验POCT厂商'] },
+        { dir:'下游', theme:'数字医疗 & 远程监护', reason:'设备+数据+服务的商业模式转型，远程ICU和慢病管理平台具有高复购率与强客户粘性', targets:['远程监护平台','慢病管理SaaS','智慧病房解决方案商'] },
+        { dir:'国际', theme:'海外区域性医疗品牌', reason:'直接收购具有本地认证与渠道的企业，是突破发达市场准入壁垒最高效的路径', targets:['欧洲超声设备品牌','北美监护设备商','东南亚医疗分销平台'] }
+      ],
+      techThemes: [
+        { tag:'AI辅助诊断', fit:88, desc:'AI读片与早筛算法与设备端融合，软件化差异竞争护城河，毛利率显著高于硬件' },
+        { tag:'分子诊断/PCR', fit:84, desc:'后疫情时代IVD布局战略意义明确，分子诊断平台企业稀缺且行业壁垒高' },
+        { tag:'家用健康监测', fit:79, desc:'血糖、血压、睡眠监测市场规模超千亿，与品牌渠道协同效率高' },
+        { tag:'手术机器人', fit:71, desc:'腔镜手术机器人国产化处于早期，早期布局可卡位高壁垒赛道' }
+      ],
+      targets: [
+        { name:'化学发光IVD龙头', type:'IVD补强', fit:90, capRange:'80–200亿', timeframe:'9–15个月', reason:'直接填补IVD产品线空白，与现有销售渠道形成即时协同效应，预计并表第1年营收贡献超10亿。' },
+        { name:'欧洲超声设备品牌', type:'国际化', fit:83, capRange:'50–150亿', timeframe:'18–24个月', reason:'获取欧盟CE认证体系与本地医院客户关系，加速西欧市场渗透，品牌溢价立即生效。' },
+        { name:'AI辅助诊断平台', type:'技术并购', fit:76, capRange:'20–60亿', timeframe:'6–12个月', reason:'软件化服务提升设备毛利率约5–8pp，构建数据驱动的差异化竞争壁垒。' }
+      ]
+    },
+    '海康威视': {
+      profile: { industry:'安防 / AI视觉 / 智慧城市', mcap:'约2,800亿元', stage:'业务转型深水区', hq:'杭州' },
+      summary: ['美国实体清单压力持续，海外业务收缩，国内AI新增长极布局成为战略核心', '安防市场增速放缓，向工业AI与智慧城市平台化转型是既定方向', '大模型视觉AI赋能场景爆发，算法平台化与数据闭环为核心竞争护城河'],
+      drivers: [
+        { icon:'🏭', title:'工业AI场景延伸', score:92, desc:'机器视觉在制造业QC、AGV调度、安全管控的渗透率不足20%，垂直行业AI解决方案公司并购可快速开拓万亿工业市场。' },
+        { icon:'🏙️', title:'智慧城市平台化', score:85, desc:'从单点设备销售向城市级数据平台转型，GIS/数字孪生/应急指挥软件企业为高协同并购标的，软件收入提升估值乘数。' },
+        { icon:'🤖', title:'具身智能布局', score:73, desc:'机器人巡检、仓储AMR与视觉感知深度结合，早期卡位可规避后期高溢价并购，战略先发优势显著。' }
+      ],
+      chain: [
+        { dir:'上游', theme:'AI芯片 & 边缘计算', reason:'实体清单限制英伟达GPU采购路径，国产AI推理芯片自主化紧迫性极高', targets:['国产边缘AI芯片','NPU加速卡初创','国产FPGA厂商'] },
+        { dir:'横向', theme:'工业视觉 & 协作机器人', reason:'机器视觉向3D感知和协作机器人延伸，打开制造业万亿级新市场', targets:['3D视觉检测企业','协作机器人公司','仓储AGV厂商'] },
+        { dir:'下游', theme:'智慧城市软件平台', reason:'数据平台锁定政府客户，从硬件低毛利向软件高毛利商业模式迁移', targets:['数字孪生平台','应急指挥调度软件','城市大数据运营商'] }
+      ],
+      techThemes: [
+        { tag:'大模型视觉AI', fit:91, desc:'GPT-4V级多模态模型赋能安防场景，算法平台化窗口期已全面开启' },
+        { tag:'国产AI芯片', fit:87, desc:'实体清单约束下，国产AI推理芯片战略性参股可增强供应链安全韧性' },
+        { tag:'数字孪生', fit:82, desc:'城市/工厂数字孪生为平台化商业模式核心载体，软件企业估值溢价空间大' },
+        { tag:'具身智能/机器人', fit:74, desc:'视觉感知技术天然延伸赛道，早期布局可规避后期高溢价并购压力' }
+      ],
+      targets: [
+        { name:'国产边缘AI芯片公司', type:'供应链安全', fit:91, capRange:'30–100亿', timeframe:'6–12个月', reason:'打破英伟达依赖，构建自主可控AI计算底层，同时打通合规出海路径。' },
+        { name:'工业3D视觉企业', type:'业务延伸', fit:85, capRange:'20–60亿', timeframe:'9–15个月', reason:'制造业视觉AI渗透率低，赢家通吃逻辑下早期并购可形成不可复制的技术壁垒。' },
+        { name:'城市大数据运营商', type:'平台升级', fit:78, capRange:'40–120亿', timeframe:'12–18个月', reason:'数据运营收入复购率高、利润率优，推动公司估值从硬件PE向软件EV/ARR乘数迁移。' }
+      ]
+    },
+    '中芯国际': {
+      profile: { industry:'半导体制造 / 晶圆代工', mcap:'约1,900亿元', stage:'技术追赶期', hq:'上海' },
+      summary: ['EUV光刻机禁运制约先进制程，28nm及以上成熟制程为当前战略支撑点', '国产替代浪潮推动订单结构持续改善，但产能爬坡与良率仍存差距', '特色工艺（模拟/功率/射频）差异化是突破估值天花板的关键路径'],
+      drivers: [
+        { icon:'⚙️', title:'特色工艺差异化', score:93, desc:'在先进制程受限前提下，模拟IC、功率器件、射频芯片等特色工艺具有高附加值。收购相关IP公司或设计公司可显著增厚毛利率，突破当前估值瓶颈。' },
+        { icon:'🏭', title:'产能生态扩张', score:86, desc:'12英寸产能需配套完整封测生态，封装测试企业并购可构建一站式晶圆代工服务能力，提升客户粘性与ARPU。' },
+        { icon:'🔧', title:'设备材料国产化', score:82, desc:'国产刻蚀机、薄膜沉积设备良率持续提升，战略性参股国产设备商可降低出口管制风险溢价，保障供应链安全。' }
+      ],
+      chain: [
+        { dir:'上游', theme:'半导体设备 & 关键材料', reason:'国产设备替代是打破出口管制天花板的核心路径，参股优质国产设备商具有重大战略意义', targets:['国产刻蚀机企业','光刻胶厂商','CMP抛光耗材公司'] },
+        { dir:'横向', theme:'特色工艺IP & EDA', reason:'功率半导体与模拟IC的工艺设计协同可显著提升特色制程毛利率，EDA工具独立自主价值极高', targets:['功率器件设计IP公司','模拟IC设计商','国产EDA工具企业'] },
+        { dir:'下游', theme:'先进封装 & Chiplet集成', reason:'Chiplet封装是绕过先进制程限制的关键技术路径，封测能力内化可提升整体服务链价值', targets:['先进封装OSAT','Chiplet互联技术公司','晶圆级测试企业'] }
+      ],
+      techThemes: [
+        { tag:'Chiplet异构集成', fit:92, desc:'突破单一先进制程限制的关键技术路径，封装壁垒高，并购窗口期紧迫' },
+        { tag:'功率半导体SiC/GaN', fit:88, desc:'新能源车与光伏逆变器驱动需求爆发，特色工艺差异化的最优赛道' },
+        { tag:'国产EDA工具', fit:83, desc:'EDA是芯片设计底层工具，被Synopsys/Cadence垄断，国产化突破战略意义极高' },
+        { tag:'存储制程工艺', fit:76, desc:'DRAM制程为潜在扩张方向，技术共通性存在，市场规模巨大' }
+      ],
+      targets: [
+        { name:'先进封装OSAT企业', type:'能力内化', fit:91, capRange:'50–200亿', timeframe:'12–18个月', reason:'Chiplet路线下封装价值急剧提升，内化封测能力可捕获更大比例产业链价值。' },
+        { name:'功率半导体IP公司', type:'工艺强化', fit:87, capRange:'20–80亿', timeframe:'9–15个月', reason:'SiC/GaN特色工艺溢价显著，IP内化可将毛利率提升5–8个百分点。' },
+        { name:'国产刻蚀设备商（参股）', type:'供应链安全', fit:80, capRange:'10–40亿', timeframe:'6–12个月', reason:'战略参股推动设备验证加速，降低出口管制冲击的供应链脆弱性，兼顾财务回报。' }
+      ]
+    }
+  };
+
+  // ── Fallback data generator for unknown companies
+  function generateFallbackData(name) {
+    let industry = '综合产业 / 多元化';
+    let themes = [
+      { tag:'数字化转型', fit:82, desc:'行业垂直SaaS与ERP系统并购可锁定客户，提升软件收入占比与估值乘数' },
+      { tag:'供应链优化', fit:78, desc:'上下游整合可降低采购成本5–15%，整合期并购窗口往往最佳' },
+      { tag:'海外市场拓展', fit:73, desc:'收购具有本地渠道与客户关系的区域性企业是最高效的国际化路径' }
+    ];
+    if (/药|医|健康|生物|基因|制药|诊断/.test(name)) {
+      industry = '医药 / 生物科技';
+      themes = [{ tag:'AI新药研发', fit:86, desc:'AI辅助分子设计显著缩短研发周期，CRO+AI平台具有稀缺战略价值' }, { tag:'基因治疗', fit:79, desc:'CGT赛道进入商业化早期，技术平台并购可卡位下一代疗法' }, { tag:'mRNA技术', fit:74, desc:'疫苗与罕见病疗法双轨应用，产能建设与技术并购价值显著' }];
+    } else if (/芯|半导|电子|科技|信息|数字|软件|云|网|智能/.test(name)) {
+      industry = '科技 / 数字化 / 半导体';
+      themes = [{ tag:'大模型/AI应用', fit:89, desc:'垂直行业大模型落地为核心竞争壁垒，算法公司并购优先于自研' }, { tag:'国产芯片替代', fit:84, desc:'供应链安全战略驱动，国产EDA/IP/设计工具企业战略价值凸显' }, { tag:'边缘计算', fit:77, desc:'端侧推理需求爆发，低功耗AI芯片与嵌入式软件协同价值大' }];
+    } else if (/能|电|储|光|风|新能源|氢|碳/.test(name)) {
+      industry = '新能源 / 清洁能源';
+      themes = [{ tag:'储能系统集成', fit:88, desc:'大型储能EPC市场爆发，系统集成与EMS软件形成双重护城河' }, { tag:'氢能技术', fit:75, desc:'绿氢制备与燃料电池重卡场景政策推动，早期布局战略意义大' }, { tag:'电网数字化', fit:82, desc:'虚拟电厂与需求侧响应管理市场成熟，软件平台价值显现' }];
+    }
+    return {
+      profile: { industry, mcap:'待核实', stage:'成长扩张期', hq:'中国大陆' },
+      summary: [name + '当前核心业务面临增量市场收窄压力，并购驱动的非有机增长路径值得重点研判', '行业竞争格局整合加速，头部公司通过并购构建壁垒的战略窗口期已开启', '科技创新能力提升与产业链控制力强化是市值提升的双重驱动引擎'],
+      drivers: [
+        { icon:'🔗', title:'产业链纵向整合', score:84, desc:'上下游并购可降低外部依赖、平滑利润波动，在行业周期下行期尤具保护价值，结合现有业务形态上下游各有1–2个高优先级方向。' },
+        { icon:'💡', title:'科技能力升级', score:80, desc:'数字化与AI技术正在重塑行业竞争格局，通过并购快速获取算法、平台或数据能力是追赶路径中最具效率的选择。' },
+        { icon:'🌐', title:'市场版图扩张', score:75, desc:'地理或客群延伸可打开新增量空间，收购具有互补客户结构或渠道资源的企业可实现协同收入效应。' }
+      ],
+      chain: [
+        { dir:'上游', theme:'核心原材料 & 关键部件', reason:'上游成本控制与供应安全性是穿越周期的战略基础', targets:['核心材料供应商','关键部件制造商','专利技术持有方'] },
+        { dir:'横向', theme:'技术能力 & 数字平台', reason:'横向并购补齐技术短板，构建差异化竞争壁垒', targets:['行业垂直SaaS企业','AI算法公司','数据平台运营商'] },
+        { dir:'下游', theme:'渠道资源 & 终端场景', reason:'下游并购锁定分销能力与用户入口，提升市场份额确定性', targets:['区域分销商','终端场景运营商','品牌渠道方'] }
+      ],
+      techThemes: themes,
+      targets: [
+        { name:'上游核心部件龙头', type:'产业链并购', fit:85, capRange:'50–200亿', timeframe:'12–18个月', reason:'控制关键材料成本，在行业整合周期中建立规模优势，EPS增厚逻辑清晰。' },
+        { name:'行业垂直AI/SaaS公司', type:'技术并购', fit:80, capRange:'20–80亿', timeframe:'6–12个月', reason:'软件化收入提升估值乘数，数字化服务与主业硬件协同形成差异化护城河。' },
+        { name:'区域互补业务平台', type:'市场扩张', fit:74, capRange:'30–100亿', timeframe:'15–24个月', reason:'客户群与渠道互补，协同收入效应可在并表后第1年显现，整合难度相对可控。' }
+      ]
+    };
+  }
+
+  // ── Radar helper functions
+  function fitClass(s) { return s >= 88 ? 'fit-hi' : s >= 78 ? 'fit-md' : 'fit-lo'; }
+  function themeBarColor(f) {
+    if (f >= 85) return 'linear-gradient(90deg,var(--gold-dim),var(--gold))';
+    if (f >= 75) return 'linear-gradient(90deg,#0D9488,var(--accent-teal))';
+    return 'linear-gradient(90deg,#2355B5,var(--accent-blue))';
+  }
+
+  // ── Radar entry point
+  function radarQuickSearch(name) {
+    document.getElementById('radarInput').value = name;
+    startRadarScan();
+  }
+
+  function startRadarScan() {
+    const name = document.getElementById('radarInput').value.trim();
+    if (!name) { document.getElementById('radarInput').focus(); return; }
+    const data = RADAR_DB[name] || generateFallbackData(name);
+    showPage('radar', document.querySelector('[data-page="radar"]'));
+    runScan(name, data);
+  }
+
+  function runScan(companyName, data) {
+    const scanState   = document.getElementById('radarScanState');
+    const resultState = document.getElementById('radarResultState');
+    scanState.style.display   = 'block';
+    resultState.style.display = 'none';
+    document.getElementById('scanCompanyName').textContent = companyName;
+
+    const steps = [
+      '读取公司基础信息 & 财务结构数据库...',
+      '扫描产业链上下游关联图谱...',
+      '匹配历史并购案例 & 估值参数...',
+      '生成 AI 并购需求分析报告...'
+    ];
+    const ids = ['_ss0','_ss1','_ss2','_ss3'];
+
+    document.getElementById('scanSteps').innerHTML = steps.map((s,i) =>
+      `<div class="scan-step ${i===0?'scan-step-active':'scan-step-wait'}" id="${ids[i]}">
+         <div class="scan-dot"></div><span>${s}</span></div>`
+    ).join('');
+
+    // Animate bar
+    const bar = document.getElementById('scanBar');
+    bar.style.transition = 'width 1.85s ease-out';
+    requestAnimationFrame(() => { bar.style.width = '100%'; });
+
+    // Step transitions
+    [450,900,1350].forEach((delay, i) => {
+      setTimeout(() => {
+        const prev = document.getElementById(ids[i]);
+        const curr = document.getElementById(ids[i+1]);
+        if (prev) prev.className = 'scan-step scan-step-done';
+        if (curr) curr.className = 'scan-step scan-step-active';
+      }, delay);
+    });
+
+    // Reveal results
+    setTimeout(() => {
+      const last = document.getElementById(ids[3]);
+      if (last) last.className = 'scan-step scan-step-done';
+      setTimeout(() => {
+        scanState.style.display = 'none';
+        renderRadarResults(companyName, data);
+        resultState.style.display = 'block';
+        window.scrollTo({ top:0, behavior:'smooth' });
+      }, 280);
+    }, 1850);
+  }
+
+  function renderRadarResults(companyName, data) {
+    const driversHTML = data.drivers.map(d => `
+      <div class="driver-card">
+        <div class="driver-icon">${d.icon}</div>
+        <div class="driver-title">${d.title}<span class="driver-score-badge">需求强度 ${d.score}</span></div>
+        <div class="driver-desc">${d.desc}</div>
+      </div>`).join('');
+
+    const chainRows = data.chain.map(c => `
+      <tr>
+        <td><span class="chain-dir-badge">${c.dir}</span>${c.theme}</td>
+        <td>${c.reason}</td>
+        <td>${c.targets.map(t=>`<span class="card-tag" style="margin:2px 2px">${t}</span>`).join('')}</td>
+      </tr>`).join('');
+
+    const themesHTML = data.techThemes.map(t => `
+      <div class="theme-card">
+        <div class="theme-card-top"><span class="theme-badge">${t.tag}</span><span class="theme-pct">${t.fit}%</span></div>
+        <div class="theme-bar-bg"><div class="theme-bar-fill" style="width:${t.fit}%;background:${themeBarColor(t.fit)}"></div></div>
+        <div class="theme-desc">${t.desc}</div>
+      </div>`).join('');
+
+    const targetsHTML = data.targets.map(t => `
+      <div class="target-card">
+        <div class="target-card-header">
+          <span class="target-type-tag">${t.type}</span>
+          <div class="fit-ring ${fitClass(t.fit)}">${t.fit}</div>
+        </div>
+        <div class="target-name">${t.name}</div>
+        <div class="target-meta-row">
+          <span class="target-meta-item">💰 ${t.capRange}</span>
+          <span class="target-meta-item">⏱ ${t.timeframe}</span>
+        </div>
+        <div class="target-reason">${t.reason}</div>
+      </div>`).join('');
+
+    const profileKPIs = [
+      { val:data.profile.industry, label:'所属行业' },
+      { val:data.profile.mcap,     label:'市值参考' },
+      { val:data.profile.stage,    label:'发展阶段' },
+      { val:data.profile.hq,       label:'注册地'   }
+    ];
+
+    document.getElementById('radarResultState').innerHTML = `
+      <div class="radar-result-hd">
+        <div class="breadcrumb">工具包总览 <span>/</span> 探嗅雷达 <span>/</span> <span class="current">${companyName}</span></div>
+        <button class="radar-reset-btn" onclick="resetRadar()">← 重新搜索</button>
+      </div>
+
+      <div class="intel-hero">
+        <div class="intel-hero-left">
+          <div class="intel-tag">RADAR INTELLIGENCE REPORT · EMO · 企业家管理办公室</div>
+          <div class="intel-name">${companyName} · 并购需求探嗅报告</div>
+          <ul class="intel-summary-list">
+            ${data.summary.map(s=>`<li>${s}</li>`).join('')}
+          </ul>
+        </div>
+        <div class="intel-kpi-grid">
+          ${profileKPIs.map(k=>`
+            <div class="intel-kpi">
+              <div class="intel-kpi-val">${k.val}</div>
+              <div class="intel-kpi-label">${k.label}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="tab-section-label">并购需求驱动因素</div>
+      <div class="driver-grid">${driversHTML}</div>
+
+      <div class="tab-section-label">产业链并购机会扫描</div>
+      <div class="compare-table-wrap">
+        <table class="compare-table">
+          <thead><tr><th>方向 &amp; 主题</th><th>并购逻辑</th><th>代表性标的方向</th></tr></thead>
+          <tbody>${chainRows}</tbody>
+        </table>
+      </div>
+
+      <div class="tab-section-label" style="margin-top:28px">科技创新主题匹配</div>
+      <div class="theme-grid">${themesHTML}</div>
+
+      <div class="tab-section-label">潜在并购标的推荐</div>
+      <div class="target-grid">${targetsHTML}</div>
+
+      <div class="block-warning" style="margin-top:8px">
+        <div class="block-warning-title">⚠ 重要免责说明</div>
+        <ul>
+          <li>本报告为 Demo 演示版，所有分析内容基于公开信息与模型推演，仅供战略参考，不构成任何投资建议</li>
+          <li>具体并购标的选择需结合专项尽职调查、监管合规审查及董事会决策，EMO 将提供全流程专业支持</li>
+          <li>市值数据与交易估值仅为参考区间，实际交易对价以市场谈判结果为准</li>
+        </ul>
+      </div>`;
+  }
+
+  function resetRadar() {
+    showPage('home', document.querySelector('[data-page="home"]'));
+    setTimeout(() => {
+      const bar = document.getElementById('scanBar');
+      if (bar) { bar.style.transition='none'; bar.style.width='0'; }
+    }, 300);
+  }
+
+  // ── Timeline phase hover pointer
+  document.querySelectorAll('.tl-phase').forEach(el => {
+    el.style.cursor = 'pointer';
+  });
+
+  // ── Radar Enter-key (placed last to ensure all functions are defined)
+  document.getElementById('radarInput').addEventListener('keydown', e => { if (e.key === 'Enter') startRadarScan(); });
+</script>
+</body>
+</html>
