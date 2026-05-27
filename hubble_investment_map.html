@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>哈勃科技投资 - 智能汽车产业链全景作战地图</title>
+    <style>
+        :root {
+            --primary: #0052d9;
+            --primary-hover: #003cab;
+            --bg-body: #f3f5f8;
+            --bg-panel: #ffffff;
+            --text-main: #1a1a1a;
+            --text-sub: #5e6d82;
+            --border: #e4e7ed;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --danger: #d32f2f;
+            --success: #2e7d32;
+            --warning: #ed6c02;
+            --highlight: #e1eaff;
+            --tag-bg: #f0f4ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--bg-panel);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .logo-title { display: flex; align-items: center; gap: 16px; }
+        .logo { font-size: 18px; font-weight: 700; color: var(--primary); letter-spacing: 1px; }
+        .title-divider { width: 1px; height: 18px; background-color: var(--border); }
+        .header-title { font-size: 15px; font-weight: 500; color: var(--text-sub); }
+        .user-info { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        .user-avatar { width: 28px; height: 28px; border-radius: 50%; background-color: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        /* Main Dashboard Grid */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 16px 24px;
+            gap: 16px;
+            overflow: hidden;
+        }
+
+        /* KPIs Panel */
+        .kpi-panel {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .kpi-card {
+            background: var(--bg-panel);
+            border-radius: 6px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .kpi-title { font-size: 12px; color: var(--text-sub); }
+        .kpi-value { font-size: 24px; font-weight: 700; color: var(--text-main); }
+        .kpi-trend { font-size: 11px; color: var(--success); }
+
+        /* Content Layout */
+        .content-layout {
+            display: flex;
+            gap: 16px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: #fafafa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-header h2 { font-size: 14px; font-weight: 600; }
+        .panel-body { padding: 16px; overflow-y: auto; flex: 1; }
+
+        /* Left: BOM Panel (Module 1) */
+        .bom-panel { width: 320px; flex-shrink: 0; }
+        .car-selector { display: flex; gap: 8px; margin-bottom: 16px; }
+        .car-btn { 
+            padding: 6px 12px; border: 1px solid var(--border); border-radius: 4px; 
+            background: #fff; cursor: pointer; font-size: 12px; transition: all 0.2s;
+        }
+        .car-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        
+        .bom-list { display: flex; flex-direction: column; gap: 12px; }
+        .bom-item { border: 1px solid var(--border); border-radius: 4px; padding: 12px; font-size: 12px; }
+        .bom-item-header { font-weight: 600; margin-bottom: 8px; font-size: 13px; color: var(--primary); }
+        .bom-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .bom-label { color: var(--text-sub); }
+        .bom-current { font-weight: 500; }
+        .bom-alt { color: var(--warning); font-weight: 500; cursor: pointer; text-decoration: underline dashed; }
+        .bom-alt:hover { color: var(--danger); }
+
+        /* Center: Map & Tech Routes (Modules 3 & Map) */
+        .center-column { flex: 1; display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+        
+        /* Map Container */
+        .map-panel { flex: 3; }
+        .map-container { display: flex; gap: 12px; overflow-x: auto; height: 100%; padding-bottom: 8px; }
+        .level1-column {
+            flex: 1; min-width: 180px; background: #fafbfc; border: 1px dashed #d9d9d9;
+            border-radius: 6px; display: flex; flex-direction: column; padding: 12px;
+        }
+        .level1-title { font-size: 13px; font-weight: 600; text-align: center; margin-bottom: 12px; color: var(--text-main); }
+        .level2-cards { display: flex; flex-direction: column; gap: 8px; }
+        .level2-card {
+            background: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 10px;
+            cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .level2-card:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,82,217,0.1); }
+        .level2-name { font-weight: 600; font-size: 12px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+        .tag { padding: 2px 4px; border-radius: 2px; font-size: 10px; background: var(--tag-bg); color: var(--primary); }
+        .hot-tag { background: #fff0f6; color: #eb2f96; border: 1px solid #ffadd2; }
+
+        /* Tech Routes Panel */
+        .tech-panel { flex: 2; }
+        .tech-routes { display: flex; flex-direction: column; gap: 16px; }
+        .tech-route-row { display: flex; align-items: center; gap: 12px; font-size: 12px; }
+        .tech-domain { font-weight: 600; width: 70px; color: var(--text-sub); }
+        .tech-steps { display: flex; align-items: center; gap: 8px; flex: 1; }
+        .tech-node { 
+            padding: 6px 12px; border-radius: 12px; background: #f0f2f5; 
+            border: 1px solid #d9d9d9; color: var(--text-sub); position: relative; cursor: pointer;
+        }
+        .tech-node.active { background: var(--primary); color: white; border-color: var(--primary); font-weight: 500; }
+        .tech-arrow { color: #bfbfbf; font-size: 12px; }
+        .tech-companies { font-size: 11px; margin-top: 4px; color: var(--text-main); }
+        .clickable-company { color: var(--primary); cursor: pointer; }
+        .clickable-company:hover { text-decoration: underline; }
+
+        /* Right: Target Pool (Module 2 & 4) */
+        .pool-panel { width: 340px; flex-shrink: 0; }
+        .pool-list { display: flex; flex-direction: column; gap: 12px; }
+        .pool-item { 
+            border-bottom: 1px solid var(--border); padding-bottom: 12px; 
+            display: flex; flex-direction: column; gap: 6px; cursor: pointer;
+        }
+        .pool-item:hover .pool-name { color: var(--primary); }
+        .pool-header { display: flex; justify-content: space-between; align-items: center; }
+        .pool-name { font-weight: 600; font-size: 14px; transition: color 0.2s; }
+        .pool-desc { font-size: 12px; color: var(--text-sub); line-height: 1.4; }
+        .pool-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+        .status-badge { padding: 2px 6px; border-radius: 2px; font-size: 10px; font-weight: 500; }
+        .status-dd { background: #e6f4ff; color: #1677ff; border: 1px solid #91caff; }
+        .status-ts { background: #fff2e8; color: #fa541c; border: 1px solid #ffbb96; }
+        .status-screen { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+
+        /* Drawer Overlay */
+        .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); opacity: 0; visibility: hidden; transition: all 0.3s ease; z-index: 99; backdrop-filter: blur(2px); }
+        .overlay.active { opacity: 1; visibility: visible; }
+        /* Drawer */
+        .drawer { position: fixed; top: 0; right: -650px; width: 650px; height: 100vh; background: var(--bg-panel); box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1); z-index: 100; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
+        .drawer.active { right: 0; }
+        .drawer-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
+        .drawer-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 12px; }
+        .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-sub); line-height: 1; }
+        .close-btn:hover { color: var(--danger); }
+        .drawer-content { padding: 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+
+        .section-title { font-size: 14px; font-weight: 600; border-left: 3px solid var(--primary); padding-left: 8px; margin-bottom: 12px; color: var(--text-main); }
+        .analysis-text { font-size: 13px; line-height: 1.6; color: var(--text-sub); background: #f8f9fa; padding: 12px; border-radius: 4px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #f8f9fa; font-weight: 600; color: var(--text-sub); }
+
+        /* Strategy Toggle */
+        .strategy-toggle {
+            display: flex;
+            background: #e4e7ed;
+            border-radius: 20px;
+            padding: 4px;
+            gap: 4px;
+        }
+        .toggle-btn {
+            padding: 6px 16px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: var(--text-sub);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .toggle-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 6px rgba(0, 82, 217, 0.2);
+        }
+        .toggle-btn.active.zaolian {
+            background: #722ed1; /* Purple for phase 2 */
+            box-shadow: 0 2px 6px rgba(114, 46, 209, 0.2);
+        }
+
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-title">
+            <div class="logo">哈勃投资</div>
+            <div class="title-divider"></div>
+            <div class="header-title" id="mainTitle">智能汽车产业链作战地图 (CVC合伙人版)</div>
+        </div>
+        <div class="strategy-toggle">
+            <button class="toggle-btn active" id="btnBulian" onclick="switchStrategy('bulian')">1.0 补链时代 (智能汽车)</button>
+            <button class="toggle-btn" id="btnZaolian" onclick="switchStrategy('zaolian')">2.0 造链时代 (具身智能/前沿)</button>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar">合</div>
+            一级市场洞察工作台
+        </div>
+    </header>
+
+    <main>
+        <!-- Top KPIs -->
+        <div class="kpi-panel" id="kpiPanel">
+        </div>
+
+        <div class="content-layout">
+            <!-- Left: BOM Panel -->
+            <div class="panel bom-panel">
+                <div class="panel-header">
+                    <h2 id="bomTitle">主流车型BOM解构 & 供应链嗅探</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="car-selector" id="bomSelector">
+                    </div>
+                    <div class="bom-list" id="bomList">
+                        <!-- BOM populated via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Map & Tech Routes -->
+            <div class="center-column">
+                <div class="panel map-panel">
+                    <div class="panel-header">
+                        <h2>产业链核心节点分布 (二级拆分)</h2>
+                    </div>
+                    <div class="panel-body" style="padding: 12px;">
+                        <div class="map-container" id="mapContainer"></div>
+                    </div>
+                </div>
+
+                <div class="panel tech-panel">
+                    <div class="panel-header">
+                        <h2>关键技术演进路线与卡位</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div class="tech-routes" id="techRoutesContainer">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Target Pool -->
+            <div class="panel pool-panel">
+                <div class="panel-header">
+                    <h2>一级市场优质标的池 (实时)</h2>
+                </div>
+                <div class="panel-body">
+                    <div class="pool-list" id="targetPool">
+                        <!-- Real Data Mocks populated via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Overlay & Drawer -->
+    <div class="overlay" id="overlay"></div>
+    <div class="drawer" id="drawer">
+        <div class="drawer-header">
+            <div class="drawer-title" id="drawerTitle">领域/标的深度分析</div>
+            <button class="close-btn" id="closeBtn">&times;</button>
+        </div>
+        <div class="drawer-content" id="drawerContent">
+            <!-- Content Injected via JS -->
+        </div>
+    </div>
+
+    <script src="./dashboard_logic.js"></script>
+</body>
+</html>
