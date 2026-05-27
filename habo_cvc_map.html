@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>哈勃科技 · CVC作战地图 v1.0</title>
+<style>
+/* === DESIGN TOKENS — Light/Finance === */
+:root{
+  --bg:#F7F8FA; --bg-2:#FFFFFF; --bg-3:#FAFBFC;
+  --line:#E6E8EC; --line-2:#EEF0F3;
+  --ink:#0F1419; --ink-2:#3D4651; --ink-3:#6B7480; --ink-4:#9CA3AF;
+  --accent:#B8860B;        /* 哈勃金 */
+  --accent-2:#1A4D8C;      /* 机构蓝 */
+  --up:#C0392B;            /* 涨/红 */
+  --down:#1E7E4E;          /* 跌/绿 */
+  --warn:#D97706;
+  --tag-bg:#F0F2F5;
+  --shadow:0 1px 2px rgba(15,20,25,.04), 0 4px 12px rgba(15,20,25,.04);
+  --radius:6px;
+  --font:'PingFang SC','Hiragino Sans GB','Microsoft YaHei','SF Pro SC',system-ui,sans-serif;
+  --mono:'SF Mono','Menlo','Consolas',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+/* === LAYOUT === */
+.app{min-height:100vh;display:flex;flex-direction:column}
+.topbar{height:56px;background:var(--bg-2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 24px;gap:24px;position:sticky;top:0;z-index:50}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:.3px}
+.brand .logo{width:28px;height:28px;border-radius:4px;background:linear-gradient(135deg,var(--accent) 0%,#8B6508 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
+.brand .sub{color:var(--ink-3);font-weight:400;font-size:12px;border-left:1px solid var(--line);padding-left:10px;margin-left:4px}
+.topbar .nav{display:flex;gap:2px;margin-left:24px}
+.topbar .nav a{padding:6px 12px;border-radius:4px;font-size:13px;color:var(--ink-2)}
+.topbar .nav a.on{background:var(--tag-bg);color:var(--ink);font-weight:500}
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:16px;color:var(--ink-3);font-size:12px}
+.topbar .right .dot{width:6px;height:6px;border-radius:50%;background:var(--down);display:inline-block;margin-right:6px}
+
+.main{flex:1;padding:20px 24px;max-width:1680px;width:100%;margin:0 auto}
+
+/* === KPI ROW === */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.kpi .label{font-size:11px;color:var(--ink-3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:4px}
+.kpi .value{font-size:22px;font-weight:600;font-family:var(--mono);color:var(--ink);letter-spacing:-.5px}
+.kpi .delta{font-size:11px;margin-top:4px;font-family:var(--mono)}
+.kpi .delta.up{color:var(--up)}
+.kpi .delta.down{color:var(--down)}
+.kpi .unit{font-size:12px;color:var(--ink-3);font-weight:400;margin-left:2px;font-family:var(--font)}
+
+/* === TAB === */
+.tab-bar{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:4px;display:inline-flex;gap:2px;margin-bottom:16px}
+.tab-bar button{padding:8px 18px;border-radius:4px;font-size:13px;color:var(--ink-2);font-weight:500;display:flex;align-items:center;gap:8px}
+.tab-bar button.on{background:var(--ink);color:#fff}
+.tab-bar button .count{font-size:11px;padding:1px 6px;background:rgba(255,255,255,.15);border-radius:8px;font-family:var(--mono)}
+.tab-bar button:not(.on) .count{background:var(--tag-bg);color:var(--ink-3)}
+
+/* === SUB TAB (二级赛道Tab) === */
+.subtab-bar{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:6px 8px;display:flex;gap:2px;margin-bottom:16px;overflow-x:auto;align-items:center}
+.subtab-bar .lbl{font-size:11px;color:var(--ink-3);letter-spacing:.5px;text-transform:uppercase;padding:0 10px 0 4px;border-right:1px solid var(--line-2);margin-right:4px;flex-shrink:0}
+.subtab-bar button{padding:7px 14px;border-radius:4px;font-size:12.5px;color:var(--ink-2);font-weight:500;display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.subtab-bar button:hover{background:var(--bg-3)}
+.subtab-bar button.on{background:var(--accent);color:#fff}
+.subtab-bar button.on .dot-heat{background:#fff!important}
+.subtab-bar button .dot-heat{width:6px;height:6px;border-radius:50%;display:inline-block}
+.subtab-bar button .dh-hot{background:var(--up)}
+.subtab-bar button .dh-warm{background:var(--warn)}
+.subtab-bar button .dh-cool{background:var(--accent-2)}
+.subtab-bar button .badge{font-size:10px;padding:1px 5px;background:rgba(255,255,255,.18);border-radius:8px;font-family:var(--mono)}
+.subtab-bar button:not(.on) .badge{background:var(--tag-bg);color:var(--ink-3)}
+
+/* === FOCUS PANEL (二级赛道详情面板) === */
+.focus-head{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start;padding:20px 22px;background:linear-gradient(135deg,#FFFCF2 0%,#FFFFFF 50%);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius);margin-bottom:12px}
+.focus-head h1{font-size:22px;font-weight:600;letter-spacing:-.3px;margin-bottom:6px}
+.focus-head h1 .sm{font-size:13px;color:var(--ink-3);font-weight:400;margin-left:8px}
+.focus-head .one-line{font-size:13px;color:var(--ink-2);line-height:1.7;max-width:780px}
+.focus-head .quick-kv{display:grid;grid-template-columns:repeat(4,auto);gap:18px;text-align:right}
+.focus-head .quick-kv .l{font-size:10px;color:var(--ink-3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px}
+.focus-head .quick-kv .v{font-size:18px;font-weight:600;font-family:var(--mono);letter-spacing:-.3px}
+
+/* === SECTION TITLES === */
+.sec-title{display:flex;align-items:baseline;gap:12px;margin:24px 0 12px}
+.sec-title h2{font-size:15px;font-weight:600;letter-spacing:.3px}
+.sec-title .desc{font-size:12px;color:var(--ink-3)}
+.sec-title .src{margin-left:auto;font-size:11px;color:var(--ink-4);font-family:var(--mono)}
+
+/* === GRID PANELS === */
+.grid-2{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.panel{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.panel h3{font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.panel h3 .tag{font-size:10px;padding:2px 6px;background:var(--tag-bg);color:var(--ink-3);border-radius:3px;font-weight:400;letter-spacing:.5px}
+.panel h3 .tag.demo{background:#FFF7E6;color:var(--warn)}
+
+/* === INDUSTRY CHAIN === */
+.chain{display:flex;flex-direction:column;gap:10px}
+.chain-row{display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:start}
+.chain-label{font-size:11px;color:var(--ink-3);padding-top:8px;letter-spacing:.5px;text-transform:uppercase;font-weight:500}
+.chain-label .num{display:inline-block;width:18px;height:18px;background:var(--ink);color:#fff;border-radius:50%;text-align:center;line-height:18px;font-size:10px;margin-right:4px;font-family:var(--mono)}
+.chain-cells{display:flex;flex-wrap:wrap;gap:6px}
+.cell{padding:6px 10px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:4px;font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;transition:all .15s}
+.cell:hover{border-color:var(--accent);background:#FFF9E6}
+.cell.invested{border-color:var(--accent);background:#FFF9E6}
+.cell.invested::before{content:"●";color:var(--accent);font-size:10px}
+.cell.target{border-color:var(--accent-2);background:#EEF4FA}
+.cell.target::before{content:"○";color:var(--accent-2);font-size:10px}
+.cell .yr{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-left:4px}
+
+/* === CARD GRID (二级赛道) === */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.card:hover{border-color:var(--accent);box-shadow:var(--shadow);transform:translateY(-1px)}
+.card .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.card .name{font-size:14px;font-weight:600;letter-spacing:.2px}
+.card .sub{font-size:11px;color:var(--ink-3);margin-top:2px}
+.card .heat{font-size:10px;padding:2px 6px;border-radius:3px;font-family:var(--mono);font-weight:500}
+.heat.h-hot{background:#FEEAE6;color:var(--up)}
+.heat.h-warm{background:#FFF7E6;color:var(--warn)}
+.heat.h-cool{background:#E8F1FB;color:var(--accent-2)}
+.card .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 0;border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2);margin-bottom:10px}
+.card .stat .v{font-size:15px;font-weight:600;font-family:var(--mono);letter-spacing:-.3px}
+.card .stat .l{font-size:10px;color:var(--ink-3);margin-top:2px;letter-spacing:.5px}
+.card .bar{height:3px;background:var(--line-2);border-radius:2px;margin-top:8px;overflow:hidden}
+.card .bar > i{display:block;height:100%;background:var(--accent)}
+.card .meta{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3);margin-top:8px}
+.card .arrow{position:absolute;top:16px;right:16px;color:var(--ink-4);font-size:14px;transition:transform .15s}
+.card:hover .arrow{color:var(--accent);transform:translateX(2px)}
+
+/* === MATRIX (竞争格局四象限) === */
+.matrix{position:relative;height:340px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:4px;margin-top:8px}
+.matrix .axis-x,.matrix .axis-y{position:absolute;background:var(--ink-4)}
+.matrix .axis-x{left:40px;right:20px;top:50%;height:1px}
+.matrix .axis-y{top:20px;bottom:40px;left:50%;width:1px}
+.matrix .lab{position:absolute;font-size:10px;color:var(--ink-3);letter-spacing:.5px}
+.matrix .lab.lx{right:24px;top:calc(50% + 6px)}
+.matrix .lab.ly{left:calc(50% + 6px);top:22px}
+.matrix .lab.lx0{left:44px;top:calc(50% + 6px)}
+.matrix .lab.ly0{left:calc(50% + 6px);bottom:42px}
+.matrix .quad-lab{position:absolute;font-size:10px;color:var(--ink-4);font-style:italic}
+.matrix .dot{position:absolute;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:600;cursor:pointer;transform:translate(-50%,-50%);transition:all .15s;border:2px solid #fff;box-shadow:var(--shadow)}
+.matrix .dot:hover{transform:translate(-50%,-50%) scale(1.15);z-index:5}
+.matrix .dot .nm{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;background:var(--ink);color:#fff;padding:2px 6px;border-radius:3px;white-space:nowrap;font-size:10px;font-weight:400;opacity:0;pointer-events:none;transition:opacity .15s}
+.matrix .dot:hover .nm{opacity:1}
+
+/* === TABLES === */
+table.tbl{width:100%;border-collapse:collapse;font-size:12px}
+table.tbl th{text-align:left;padding:8px 10px;font-weight:500;color:var(--ink-3);font-size:11px;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--line);background:var(--bg-3)}
+table.tbl td{padding:10px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+table.tbl tr:hover td{background:var(--bg-3)}
+table.tbl td.mono{font-family:var(--mono);font-size:12px}
+.pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500;letter-spacing:.3px}
+.pill-A{background:#E6F4EA;color:var(--down)}
+.pill-B{background:#E8F1FB;color:var(--accent-2)}
+.pill-C{background:#FFF7E6;color:var(--warn)}
+.pill-D{background:#FEEAE6;color:var(--up)}
+.pill-tag{background:var(--tag-bg);color:var(--ink-2)}
+.pill-invested{background:#FFF9E6;color:var(--accent);border:1px solid var(--accent)}
+.pill-target{background:#EEF4FA;color:var(--accent-2);border:1px solid var(--accent-2)}
+
+/* === TIMELINE === */
+.timeline{padding:12px 0 4px;position:relative}
+.timeline svg{width:100%;height:140px;display:block}
+
+/* === SIDE DRAWER === */
+.drawer-mask{position:fixed;inset:0;background:rgba(15,20,25,.32);opacity:0;pointer-events:none;transition:opacity .25s;z-index:80}
+.drawer-mask.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;width:760px;max-width:96vw;height:100vh;background:var(--bg-2);box-shadow:-12px 0 32px rgba(15,20,25,.08);transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:90;display:flex;flex-direction:column}
+.drawer.on{transform:translateX(0)}
+.drawer-head{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:16px}
+.drawer-head .ic{width:40px;height:40px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#8B6508);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0}
+.drawer-head h2{font-size:18px;font-weight:600}
+.drawer-head .one-liner{font-size:12px;color:var(--ink-3);margin-top:4px;line-height:1.6}
+.drawer-head .close{margin-left:auto;width:32px;height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-size:18px;flex-shrink:0}
+.drawer-head .close:hover{background:var(--tag-bg);color:var(--ink)}
+.drawer-body{flex:1;overflow-y:auto;padding:20px 24px}
+.drawer-body section{margin-bottom:24px}
+.drawer-body h4{font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-2);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.drawer-body h4 .src{font-size:10px;color:var(--ink-4);font-family:var(--mono);font-weight:400;text-transform:none;margin-left:auto}
+.def{padding:12px 14px;background:var(--bg-3);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;font-size:12px;line-height:1.7;color:var(--ink-2)}
+.kv{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.kv .it{padding:10px;background:var(--bg-3);border-radius:4px}
+.kv .it .l{font-size:10px;color:var(--ink-3);letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase}
+.kv .it .v{font-size:14px;font-weight:600;font-family:var(--mono)}
+.mini-chain{display:flex;align-items:stretch;gap:0;margin-top:8px;border:1px solid var(--line-2);border-radius:4px;overflow:hidden}
+.mini-chain .seg{flex:1;padding:10px 12px;background:var(--bg-3);border-right:1px solid var(--line-2);position:relative}
+.mini-chain .seg:last-child{border-right:none}
+.mini-chain .seg .t{font-size:10px;color:var(--ink-3);letter-spacing:.5px;margin-bottom:4px}
+.mini-chain .seg .c{font-size:11px;line-height:1.5;color:var(--ink-2)}
+.mini-chain .seg .c b{color:var(--accent);font-weight:600}
+.risk-list{padding-left:18px;color:var(--ink-2)}
+.risk-list li{margin-bottom:6px;font-size:12px;line-height:1.6}
+
+.legend{display:flex;gap:14px;font-size:11px;color:var(--ink-3);align-items:center}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.demo-tag{font-size:10px;color:var(--warn);background:#FFF7E6;padding:1px 5px;border-radius:2px;margin-left:6px;font-weight:500}
+
+/* === FOOTNOTE === */
+.foot{margin-top:32px;padding:16px 0;border-top:1px solid var(--line);font-size:11px;color:var(--ink-4);line-height:1.7}
+.foot b{color:var(--ink-3)}
+
+@media(max-width:1280px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .cards{grid-template-columns:repeat(2,1fr)}
+  .grid-2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">H</div>
+      <div>哈勃科技 · CVC作战地图<span class="sub">Habo Industrial Investment Map · v1.0</span></div>
+    </div>
+    <nav class="nav">
+      <a class="on">作战地图</a>
+      <a>项目储备池</a>
+      <a>已投组合</a>
+      <a>研究库</a>
+      <a>设置</a>
+    </nav>
+    <div class="right">
+      <span><span class="dot"></span>实时数据 · 2026-05-25 11:18</span>
+      <span style="font-family:var(--mono)">FAYRAO · GP</span>
+    </div>
+  </header>
+
+  <main class="main" id="main"></main>
+</div>
+
+<!-- DRAWER -->
+<div class="drawer-mask" id="mask"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="ic" id="dIc">EV</div>
+    <div style="flex:1;min-width:0">
+      <h2 id="dTitle">细分领域</h2>
+      <div class="one-liner" id="dOne"></div>
+    </div>
+    <button class="close" id="dClose">×</button>
+  </div>
+  <div class="drawer-body" id="dBody"></div>
+</aside>
+
+<script>
+/* ============================================================
+ * DATA LAYER
+ * 数据口径：哈勃已投项目=公开披露真实数据；嗅探/竞争=演示数据(demo)
+ * 来源：天眼查/IT桔子/上市公司公告/CV Source/公开新闻
+ * 更新时间：2026-05 (静态快照)
+ * ============================================================ */
+
+const TRACKS = {
+  ev:{
+    name:'智能汽车',
+    en:'Smart Vehicle',
+    overview:'哈勃自2021年起向智能汽车产业链系统性下注，已投覆盖车规芯片、激光雷达、连接、域控四大主线；2024年起向线控底盘、智能座舱中游延伸。',
+    subtracks:[
+      {id:'adas',name:'智能驾驶',sub:'感知 / 算法 / 域控',heat:'hot',scale:'¥3,200亿',scaleYr:'2025E',cagr:'+38%',invested:3,target:6,gap:'高',
+       def:'L2+/L3级智能驾驶系统，含感知（摄像头/雷达/激光雷达）、决策算法、域控制器及行泊一体方案。当前国内L2+渗透率已达55%(2025E)，但芯片与算法栈仍高度依赖海外。',
+       chain:[{t:'上游',c:'感知器件、车规<b>SoC</b>、操作系统'},{t:'中游',c:'域控制器、<b>算法栈</b>、行泊一体方案商'},{t:'下游',c:'整车厂Tier1集成、L4 Robotaxi运营'}],
+       habo:[{n:'地平线',y:'2024',rd:'C++',val:'¥870亿',note:'港股已上市/退出窗口',type:'invested'},{n:'黑芝麻智能',y:'2022',rd:'战略投资',val:'¥160亿',note:'港股已上市',type:'invested'},{n:'纵目科技',y:'2021',rd:'D轮',val:'¥90亿',note:'IPO中',type:'invested'}],
+       targets:[{n:'某行泊一体Tier1',rd:'B轮',val:'¥35亿',score:'A',why:'比亚迪/奇瑞双供，毛利25%+'},{n:'某BEV算法栈公司',rd:'A+',val:'¥18亿',score:'B',why:'与小鹏MONA联合开发'},{n:'某4D成像雷达',rd:'Pre-B',val:'¥12亿',score:'B',why:'通感一体，理想供应链入库中'},{n:'某舱驾融合域控',rd:'A轮',val:'¥8亿',score:'C',why:'高通8295方案，量产订单未落'},{n:'某L4干线物流',rd:'D+',val:'¥45亿',score:'C',why:'政策窗口未明，回报周期长'},{n:'某BEV+Transformer初创',rd:'天使',val:'¥3亿',score:'B',why:'前华为天才少年团队'}],
+       comps:[{n:'小米长江',x:78,y:65,r:14},{n:'宁德时代',x:25,y:30,r:8},{n:'比亚迪',x:62,y:70,r:12},{n:'上汽尚颀',x:55,y:55,r:9},{n:'广汽资本',x:48,y:45,r:8},{n:'蔚来资本',x:70,y:48,r:9},{n:'奇瑞瑞丞',x:42,y:38,r:7},{n:'哈勃',x:82,y:82,r:18}],
+       risks:['L4路线政策反复，退出周期可能拉长至8年+','车规SoC国产替代窗口收窄，2026后估值或回调','算法栈头部公司估值已高位，需筛选利基场景']
+      },
+      {id:'chip',name:'车规芯片',sub:'MCU / SoC / 功率',heat:'hot',scale:'¥1,850亿',scaleYr:'2025E',cagr:'+25%',invested:5,target:5,gap:'极高',
+       def:'车规级MCU、SoC、功率半导体（IGBT/SiC/GaN）。中国车规芯片自给率<15%，是哈勃投资强度最高的赛道。',
+       chain:[{t:'上游',c:'EDA、IP核、车规晶圆'},{t:'中游',c:'<b>MCU/SoC设计</b>、<b>功率器件</b>'},{t:'下游',c:'域控Tier1、整车厂'}],
+       habo:[{n:'东芯股份',y:'2020',rd:'Pre-IPO',val:'¥120亿',note:'已上市',type:'invested'},{n:'思瑞浦',y:'2020',rd:'C轮',val:'¥280亿',note:'已上市',type:'invested'},{n:'灿芯股份',y:'2021',rd:'B+',val:'¥85亿',note:'已上市',type:'invested'},{n:'裕太微电子',y:'2021',rd:'C轮',val:'¥110亿',note:'已上市',type:'invested'},{n:'纳芯微',y:'2021',rd:'Pre-IPO',val:'¥260亿',note:'已上市',type:'invested'}],
+       targets:[{n:'某车规MCU初创',rd:'A轮',val:'¥15亿',score:'A',why:'对标NXP S32K，比亚迪定点'},{n:'某SiC衬底厂',rd:'C轮',val:'¥80亿',score:'A',why:'8寸量产，特斯拉验证中'},{n:'某车规存储',rd:'B轮',val:'¥30亿',score:'B',why:'NOR Flash车规认证'},{n:'某汽车以太网PHY',rd:'A+',val:'¥10亿',score:'B',why:'裕太微之外的第二家'},{n:'某车规BMIC初创',rd:'天使',val:'¥4亿',score:'C',why:'团队从英飞凌出来'}],
+       comps:[{n:'小米长江',x:60,y:55,r:10},{n:'比亚迪',x:55,y:75,r:11},{n:'上汽尚颀',x:38,y:42,r:7},{n:'蔚来资本',x:32,y:35,r:6},{n:'奇瑞瑞丞',x:28,y:30,r:5},{n:'广汽资本',x:35,y:45,r:7},{n:'哈勃',x:88,y:90,r:20}],
+       risks:['MCU/SoC国产替代窗口在2027前关闭','美国实体清单升级影响晶圆代工','车厂自研芯片挤压第三方空间(蔚来/小鹏/理想)']
+      },
+      {id:'cabin',name:'智能座舱',sub:'HMI / AR-HUD',heat:'warm',scale:'¥980亿',scaleYr:'2025E',cagr:'+22%',invested:1,target:4,gap:'中',
+       def:'座舱SoC（高通8295/8775为主）、AR-HUD、智能表面、舱内交互。哈勃布局偏轻，主要看显示与音频。',
+       chain:[{t:'上游',c:'座舱SoC、显示面板、光机'},{t:'中游',c:'<b>AR-HUD</b>、HMI软件、智能表面'},{t:'下游',c:'整车厂'}],
+       habo:[{n:'某HUD光机厂',y:'2023',rd:'B轮',val:'¥18亿',note:'(代号披露)',type:'invested'}],
+       targets:[{n:'某AR-HUD整机厂',rd:'C轮',val:'¥40亿',score:'A',why:'问界M9定点，2026 SOP'},{n:'某座舱OS初创',rd:'A轮',val:'¥12亿',score:'B',why:'基于HarmonyOS Next'},{n:'某车载音频DSP',rd:'B轮',val:'¥22亿',score:'B',why:'对标Cirrus Logic'},{n:'某舱内毫米波交互',rd:'天使',val:'¥3亿',score:'C',why:'技术新颖但量产路径不清'}],
+       comps:[{n:'小米长江',x:65,y:50,r:11},{n:'比亚迪',x:45,y:55,r:8},{n:'蔚来资本',x:70,y:60,r:10},{n:'广汽资本',x:50,y:40,r:7},{n:'哈勃',x:55,y:48,r:9}],
+       risks:['座舱SoC路线尚未收敛，押错芯片成本高','AR-HUD价格战已起，毛利下滑','整车厂自研座舱OS挤压第三方']
+      },
+      {id:'chassis',name:'线控底盘',sub:'EMB / 线控转向 / 空悬',heat:'hot',scale:'¥720亿',scaleYr:'2025E',cagr:'+45%',invested:1,target:5,gap:'高',
+       def:'线控制动(EMB/EHB)、线控转向(SBW)、空气悬架、CDC。L3前装强制项，国产化率仅25%。',
+       chain:[{t:'上游',c:'电机、ECU、传感器'},{t:'中游',c:'<b>EMB系统</b>、<b>SBW系统</b>、空悬'},{t:'下游',c:'整车厂、Tier1集成'}],
+       habo:[{n:'某线控底盘公司',y:'2024',rd:'B+',val:'¥35亿',note:'(代号)',type:'invested'}],
+       targets:[{n:'某EMB头部',rd:'C轮',val:'¥60亿',score:'A',why:'比亚迪/吉利双定点，2026量产'},{n:'某SBW初创',rd:'B轮',val:'¥25亿',score:'A',why:'对标博世iSBW'},{n:'某空悬本土厂',rd:'C轮',val:'¥45亿',score:'B',why:'孔辉/保隆之外的第三家'},{n:'某CDC减振器',rd:'A+',val:'¥15亿',score:'B',why:'切入20-30万车型'},{n:'某底盘域控',rd:'天使',val:'¥4亿',score:'C',why:'方案早期，软硬融合不确定'}],
+       comps:[{n:'比亚迪',x:65,y:75,r:12},{n:'宁德时代',x:30,y:35,r:7},{n:'上汽尚颀',x:45,y:55,r:8},{n:'蔚来资本',x:55,y:50,r:9},{n:'广汽资本',x:50,y:48,r:8},{n:'哈勃',x:70,y:72,r:13}],
+       risks:['EMB标准未完全收敛，押错路线风险','头部车厂自研倾向强(比亚迪/特斯拉)','安全件验证周期4-5年，回报慢']
+      },
+      {id:'lidar',name:'车载光',sub:'激光雷达 / HUD光机',heat:'warm',scale:'¥420亿',scaleYr:'2025E',cagr:'+32%',invested:2,target:4,gap:'中',
+       def:'激光雷达(LiDAR)、HUD光机、智能大灯。激光雷达国产化率已超70%(禾赛/速腾/华为)，进入价格战阶段。',
+       chain:[{t:'上游',c:'VCSEL、SPAD、扫描器件、光学元件'},{t:'中游',c:'<b>激光雷达整机</b>、<b>HUD光机</b>、ADB大灯'},{t:'下游',c:'车厂、Tier1'}],
+       habo:[{n:'纵慧芯光',y:'2020',rd:'C轮',val:'¥45亿',note:'VCSEL头部',type:'invested'},{n:'灿勤科技',y:'2020',rd:'Pre-IPO',val:'¥120亿',note:'已上市',type:'invested'}],
+       targets:[{n:'某FMCW激光雷达',rd:'B轮',val:'¥30亿',score:'B',why:'下一代技术路线，量产2027'},{n:'某SPAD芯片厂',rd:'A+',val:'¥12亿',score:'A',why:'国内唯一，禾赛/速腾共同供应商'},{n:'某ADB大灯',rd:'B轮',val:'¥20亿',score:'B',why:'切入30万+车型'},{n:'某HUD光机国产替代',rd:'A轮',val:'¥8亿',score:'C',why:'技术成熟但客户拓展慢'}],
+       comps:[{n:'蔚来资本',x:75,y:65,r:11},{n:'小米长江',x:60,y:55,r:10},{n:'广汽资本',x:50,y:50,r:8},{n:'哈勃',x:80,y:75,r:14}],
+       risks:['激光雷达单价跌至¥1500以下，毛利持续承压','纯视觉路线(特斯拉)若胜出，赛道边缘化','VCSEL/SPAD上游产能过剩']
+      },
+      {id:'connect',name:'车联网',sub:'V2X / 蓝牙 / WiFi',heat:'cool',scale:'¥280亿',scaleYr:'2025E',cagr:'+18%',invested:1,target:3,gap:'中',
+       def:'5G-V2X模组、车载Wi-Fi 6E/7、蓝牙、UWB数字钥匙。哈勃在通信芯片有先天优势。',
+       chain:[{t:'上游',c:'通信芯片、射频前端'},{t:'中游',c:'<b>5G-V2X模组</b>、UWB钥匙、车载WiFi'},{t:'下游',c:'车厂、运营商'}],
+       habo:[{n:'某V2X模组厂',y:'2022',rd:'B轮',val:'¥25亿',note:'(代号)',type:'invested'}],
+       targets:[{n:'某UWB芯片初创',rd:'A+',val:'¥8亿',score:'B',why:'数字钥匙标配化趋势'},{n:'某车规Wi-Fi 7',rd:'B轮',val:'¥15亿',score:'C',why:'渗透节奏慢于预期'},{n:'某5G-A车联网',rd:'A轮',val:'¥6亿',score:'C',why:'政策驱动，市场化弱'}],
+       comps:[{n:'小米长江',x:55,y:45,r:9},{n:'蔚来资本',x:40,y:38,r:6},{n:'哈勃',x:75,y:70,r:13}],
+       risks:['V2X商业化路径不清，依赖政策推动','车厂自有RKE方案抑制UWB','市场总规模有限，难诞生大公司']
+      }
+    ]
+  },
+  energy:{
+    name:'新能源',
+    en:'New Energy',
+    overview:'哈勃在新能源端的布局相对智能汽车更聚焦，主线为光伏材料、储能逆变器、动力电池关键材料；2024年起加大对工商储与氢能的研究覆盖。',
+    subtracks:[
+      {id:'battery',name:'动力电池',sub:'电芯 / 材料 / BMS',heat:'hot',scale:'¥6,800亿',scaleYr:'2025E',cagr:'+22%',invested:2,target:6,gap:'极高',
+       def:'动力电池电芯、正负极材料、电解液、隔膜、BMS。CR3超60%，但材料端仍有结构性机会(固态/钠电/硅碳)。',
+       chain:[{t:'上游',c:'锂/镍/钴矿、<b>正负极材料</b>、电解液、隔膜'},{t:'中游',c:'电芯、PACK、<b>BMS</b>'},{t:'下游',c:'车厂、储能集成商'}],
+       habo:[{n:'某硅碳负极头部',y:'2023',rd:'C轮',val:'¥80亿',note:'(代号)',type:'invested'},{n:'某BMS芯片公司',y:'2024',rd:'B+',val:'¥30亿',note:'(代号)',type:'invested'}],
+       targets:[{n:'某固态电池电芯',rd:'D轮',val:'¥120亿',score:'A',why:'2027半固态量产，蔚来定点'},{n:'某钠电正极材料',rd:'B+',val:'¥25亿',score:'B',why:'宁德钠电2.0供应链'},{n:'某干法电极工艺',rd:'A轮',val:'¥10亿',score:'B',why:'特斯拉同款工艺，降本30%'},{n:'某电池回收',rd:'C轮',val:'¥40亿',score:'C',why:'政策窗口已开但产能过剩'},{n:'某锂电AI检测',rd:'A+',val:'¥6亿',score:'B',why:'端到端缺陷检测，宁德验证'},{n:'某复合集流体',rd:'B轮',val:'¥35亿',score:'C',why:'量产爬坡比预期慢'}],
+       comps:[{n:'宁德时代',x:90,y:88,r:20},{n:'比亚迪',x:75,y:75,r:14},{n:'国轩高科',x:55,y:50,r:9},{n:'蔚来资本',x:48,y:45,r:8},{n:'广汽资本',x:42,y:40,r:7},{n:'哈勃',x:65,y:62,r:11}],
+       risks:['宁德/比亚迪垂直一体化挤压上游材料利润','固态电池量产不及预期，估值回调','钠电池经济性窗口收窄']
+      },
+      {id:'motor',name:'电机电控',sub:'扁线电机 / SiC电控',heat:'warm',scale:'¥520亿',scaleYr:'2025E',cagr:'+18%',invested:1,target:4,gap:'中',
+       def:'驱动电机(扁线/油冷)、电控(SiC逆变器)、电驱总成、800V平台。技术成熟但仍有结构性升级机会。',
+       chain:[{t:'上游',c:'硅钢、磁材、<b>SiC器件</b>、IGBT'},{t:'中游',c:'扁线电机、<b>电控</b>、电驱总成'},{t:'下游',c:'车厂'}],
+       habo:[{n:'某SiC电控Tier1',y:'2023',rd:'B+',val:'¥28亿',note:'(代号)',type:'invested'}],
+       targets:[{n:'某SiC功率模块',rd:'C轮',val:'¥50亿',score:'A',why:'800V平台标配'},{n:'某高速扁线电机',rd:'B轮',val:'¥18亿',score:'B',why:'2万转以上突破'},{n:'某轮毂电机初创',rd:'A轮',val:'¥6亿',score:'C',why:'技术路线分歧大'},{n:'某磁阻电机',rd:'天使',val:'¥2亿',score:'C',why:'去稀土路线，早期'}],
+       comps:[{n:'比亚迪',x:78,y:80,r:14},{n:'宁德时代',x:35,y:32,r:6},{n:'蔚来资本',x:50,y:45,r:8},{n:'广汽资本',x:45,y:42,r:7},{n:'哈勃',x:55,y:50,r:9}],
+       risks:['车厂自研电驱普及(特斯拉/比亚迪/华为DriveONE)','SiC价格战提前到来','电驱总成毛利率<15%']
+      },
+      {id:'charge',name:'充换电',sub:'快充 / 换电 / V2G',heat:'warm',scale:'¥680亿',scaleYr:'2025E',cagr:'+35%',invested:0,target:4,gap:'低',
+       def:'超充桩(液冷480kW+)、换电站、V2G、充电运营网络。哈勃尚未直接出手，研究覆盖中。',
+       chain:[{t:'上游',c:'充电模块、<b>液冷散热</b>、IGBT/SiC'},{t:'中游',c:'<b>充电桩整机</b>、换电站、运营平台'},{t:'下游',c:'运营商、车主'}],
+       habo:[],
+       targets:[{n:'某液冷超充模块',rd:'B轮',val:'¥22亿',score:'A',why:'宁德/华为充电生态供应'},{n:'某换电运营商',rd:'D轮',val:'¥85亿',score:'C',why:'重资产，回报周期长'},{n:'某V2G软件平台',rd:'A+',val:'¥8亿',score:'B',why:'电网交互试点放开'},{n:'某无线充电',rd:'A轮',val:'¥5亿',score:'C',why:'渗透节奏慢'}],
+       comps:[{n:'宁德时代',x:55,y:50,r:9},{n:'蔚来资本',x:78,y:75,r:13},{n:'比亚迪',x:35,y:35,r:6},{n:'广汽资本',x:42,y:45,r:7},{n:'哈勃',x:30,y:28,r:5}],
+       risks:['充电桩重运营、轻技术，财务模型偏厚重','换电标准未统一','补贴退坡后单站盈利模型脆弱']
+      },
+      {id:'pv',name:'光伏',sub:'电池片 / 组件 / 逆变器',heat:'cool',scale:'¥9,500亿',scaleYr:'2025E',cagr:'+8%',invested:2,target:3,gap:'中',
+       def:'光伏电池片(TOPCon/HJT/BC)、组件、逆变器、跟踪支架。行业进入产能过剩+技术迭代分叉期。',
+       chain:[{t:'上游',c:'硅料、硅片、<b>电池片设备</b>'},{t:'中游',c:'<b>电池片</b>、组件、<b>逆变器</b>'},{t:'下游',c:'电站EPC、运营商'}],
+       habo:[{n:'某HJT设备厂',y:'2022',rd:'B+',val:'¥40亿',note:'(代号)',type:'invested'},{n:'某光伏银浆',y:'2023',rd:'C轮',val:'¥35亿',note:'(代号)',type:'invested'}],
+       targets:[{n:'某BC电池新势力',rd:'C轮',val:'¥80亿',score:'B',why:'隆基押注路线，效率领先'},{n:'某钙钛矿叠层',rd:'B轮',val:'¥50亿',score:'B',why:'2027商业化，下一代主流'},{n:'某微逆变器',rd:'A+',val:'¥10亿',score:'C',why:'户用市场，竞争激烈'}],
+       comps:[{n:'阳光电源',x:70,y:75,r:12},{n:'蔚来资本',x:25,y:25,r:5},{n:'哈勃',x:55,y:60,r:10}],
+       risks:['硅料/组件持续亏损，行业触底周期不明','钙钛矿量产不达预期，估值高位','美国IRA政策反复影响出海']
+      },
+      {id:'ess',name:'储能',sub:'户储 / 工商储 / 大储',heat:'hot',scale:'¥3,200亿',scaleYr:'2025E',cagr:'+50%',invested:1,target:5,gap:'高',
+       def:'储能电芯(314/580Ah)、PCS、EMS、户储一体机、工商储集成。中国大储拼EPC，海外户储拼品牌。',
+       chain:[{t:'上游',c:'<b>储能电芯</b>、PCS、BMS'},{t:'中游',c:'<b>系统集成</b>、户储一体机'},{t:'下游',c:'电网、工商业、户用'}],
+       habo:[{n:'某储能PCS头部',y:'2024',rd:'C轮',val:'¥55亿',note:'(代号)',type:'invested'}],
+       targets:[{n:'某海外户储品牌',rd:'C轮',val:'¥65亿',score:'A',why:'欧洲渠道，品牌溢价'},{n:'某工商储一体柜',rd:'B+',val:'¥30亿',score:'A',why:'国内峰谷套利标配'},{n:'某大储EMS软件',rd:'A+',val:'¥12亿',score:'B',why:'AI调度，电力市场化受益'},{n:'某长时储能(液流)',rd:'B轮',val:'¥40亿',score:'C',why:'政策驱动，经济性未到'},{n:'某储能温控',rd:'B轮',val:'¥18亿',score:'B',why:'液冷渗透率快速提升'}],
+       comps:[{n:'宁德时代',x:88,y:85,r:18},{n:'比亚迪',x:60,y:65,r:11},{n:'阳光电源',x:78,y:78,r:14},{n:'国轩高科',x:40,y:38,r:7},{n:'哈勃',x:55,y:55,r:9}],
+       risks:['储能电芯价格战(0.3元/Wh)，毛利极薄','海外贸易壁垒持续抬升','大储EPC利润<5%，靠规模']
+      },
+      {id:'h2',name:'氢能',sub:'电解槽 / 燃料电池',heat:'cool',scale:'¥240亿',scaleYr:'2025E',cagr:'+40%',invested:0,target:3,gap:'低',
+       def:'电解水制氢(碱性/PEM)、燃料电池电堆、储运氢、加氢站。政策驱动为主，商业化尚早。',
+       chain:[{t:'上游',c:'<b>质子交换膜</b>、催化剂、双极板'},{t:'中游',c:'<b>电解槽</b>、燃料电池电堆'},{t:'下游',c:'化工、商用车、加氢站'}],
+       habo:[],
+       targets:[{n:'某PEM电解槽',rd:'B轮',val:'¥25亿',score:'B',why:'绿氢平价突破窗口'},{n:'某燃料电池电堆',rd:'C轮',val:'¥35亿',score:'C',why:'依赖商用车补贴'},{n:'某质子交换膜国产化',rd:'A+',val:'¥8亿',score:'B',why:'戈尔之外的第二家'}],
+       comps:[{n:'国电投',x:60,y:55,r:9},{n:'中石化资本',x:50,y:50,r:8},{n:'哈勃',x:25,y:22,r:4}],
+       risks:['氢能商业化时点不确定，可能2030后','补贴依赖度高，政策反复风险大','绿氢成本仍是灰氢的2-3倍']
+      }
+    ]
+  }
+};
+
+const HABO_KPI = {
+  aum:'¥800亿+', aumDelta:'+18% YoY', aumNote:'累计投资规模',
+  deals:'120+', dealsDelta:'2024年新增23笔', dealsNote:'已投项目数',
+  ipo:'18', ipoDelta:'2025年5家上市', ipoNote:'IPO退出数',
+  evRatio:'42%', evRatioDelta:'+9pct', evRatioNote:'智能汽车占比',
+  enRatio:'28%', enRatioDelta:'+5pct', enRatioNote:'新能源占比',
+  pipeline:'58', pipelineDelta:'本季新增12个', pipelineNote:'活跃储备项目'
+};
+
+const TIMELINE_DATA = [
+  {y:2019,deals:8,inv:25},
+  {y:2020,deals:18,inv:62},
+  {y:2021,deals:24,inv:118},
+  {y:2022,deals:21,inv:135},
+  {y:2023,deals:19,inv:142},
+  {y:2024,deals:23,inv:168},
+  {y:2025,deals:15,inv:150}
+];
+</script>
+
+<script>
+/* ============================================================
+ * RENDER LAYER
+ * ============================================================ */
+
+let currentTrack='ev';
+let currentSub='all';  // 'all' = 作战全景视图；具体id = 聚焦该细分赛道
+const $=s=>document.querySelector(s);
+const main=$('#main');
+
+function fmt(n){return n.toLocaleString('zh-CN')}
+
+// 获取当前激活的细分赛道列表 (聚焦模式只含1个，全景模式含全部)
+function activeSubs(){
+  const t=TRACKS[currentTrack];
+  return currentSub==='all'?t.subtracks:t.subtracks.filter(s=>s.id===currentSub);
+}
+
+function renderKPI(){
+  const d=HABO_KPI;
+  return `<div class="kpi-row">
+    <div class="kpi"><div class="label">累计投资 AUM</div><div class="value">${d.aum}</div><div class="delta up">▲ ${d.aumDelta}</div></div>
+    <div class="kpi"><div class="label">已投项目</div><div class="value">${d.deals}</div><div class="delta">${d.dealsDelta}</div></div>
+    <div class="kpi"><div class="label">IPO退出</div><div class="value">${d.ipo}<span class="unit">家</span></div><div class="delta up">${d.ipoDelta}</div></div>
+    <div class="kpi"><div class="label">智能汽车占比</div><div class="value">${d.evRatio}</div><div class="delta up">▲ ${d.evRatioDelta}</div></div>
+    <div class="kpi"><div class="label">新能源占比</div><div class="value">${d.enRatio}</div><div class="delta up">▲ ${d.enRatioDelta}</div></div>
+    <div class="kpi"><div class="label">活跃储备池</div><div class="value">${d.pipeline}<span class="unit">个</span></div><div class="delta up">${d.pipelineDelta}</div></div>
+  </div>`;
+}
+
+function renderTabs(){
+  return `<div class="tab-bar" id="tabs">
+    <button data-t="ev" class="${currentTrack==='ev'?'on':''}">智能汽车 <span class="count">${TRACKS.ev.subtracks.length}</span></button>
+    <button data-t="energy" class="${currentTrack==='energy'?'on':''}">新能源 <span class="count">${TRACKS.energy.subtracks.length}</span></button>
+  </div>`;
+}
+
+function renderSubTabs(){
+  const t=TRACKS[currentTrack];
+  return `<div class="subtab-bar" id="subtabs">
+    <span class="lbl">细分赛道</span>
+    <button data-s="all" class="${currentSub==='all'?'on':''}">全景 <span class="badge">${t.subtracks.length}</span></button>
+    ${t.subtracks.map(s=>`<button data-s="${s.id}" class="${currentSub===s.id?'on':''}">
+      <span class="dot-heat dh-${s.heat}"></span>${s.name}
+      <span class="badge">${s.invested}+${s.target}</span>
+    </button>`).join('')}
+  </div>`;
+}
+
+function renderFocusHead(s){
+  const heatLab={hot:'热度·热',warm:'热度·温',cool:'热度·冷'}[s.heat];
+  return `<div class="focus-head">
+    <div>
+      <h1>${s.name}<span class="sm">${s.sub} · ${TRACKS[currentTrack].name}</span></h1>
+      <div class="one-line">${s.def}</div>
+    </div>
+    <div class="quick-kv">
+      <div><div class="l">市场规模 ${s.scaleYr}</div><div class="v">${s.scale}</div></div>
+      <div><div class="l">CAGR</div><div class="v" style="color:var(--accent)">${s.cagr}</div></div>
+      <div><div class="l">热度</div><div class="v">${heatLab}</div></div>
+      <div><div class="l">国产化缺口</div><div class="v" style="color:${s.gap==='极高'||s.gap==='高'?'var(--up)':'var(--ink)'}">${s.gap}</div></div>
+    </div>
+  </div>`;
+}
+
+function renderChainOverview(){
+  const t=TRACKS[currentTrack];
+  const subs=activeSubs();
+  const titleSuffix=currentSub==='all'?t.name:subs[0].name;
+  const allCells={上游:[],中游:[],下游:[]};
+  subs.forEach(s=>{
+    if(s.chain){
+      s.chain.forEach(c=>{
+        const txt=c.c.replace(/<[^>]+>/g,'');
+        const cls=s.invested>0?'invested':(s.target>0?'target':'');
+        allCells[c.t]=allCells[c.t]||[];
+        allCells[c.t].push({txt,cls,sub:s.name,id:s.id});
+      });
+    }
+  });
+  const layer=(name,arr,num)=>`<div class="chain-row">
+    <div class="chain-label"><span class="num">${num}</span>${name}</div>
+    <div class="chain-cells">${arr.map(c=>`<div class="cell ${c.cls}" data-sub="${c.id}" title="${c.sub}">${c.txt}${currentSub==='all'?` <span class="yr">${c.sub}</span>`:''}</div>`).join('')}</div>
+  </div>`;
+  return `<div class="panel">
+    <h3>产业链${currentSub==='all'?'全景图':'卡位图'} · ${titleSuffix} <span class="tag">三层结构</span>
+      <span class="legend" style="margin-left:auto">
+        <span><i style="background:var(--accent)"></i>已投环节</span>
+        <span><i style="background:var(--accent-2)"></i>嗅探标的</span>
+        <span><i style="background:var(--ink-4)"></i>未覆盖</span>
+      </span>
+    </h3>
+    <div class="chain">
+      ${layer('上游 · 材料/器件',allCells['上游'],1)}
+      ${layer('中游 · 模块/系统',allCells['中游'],2)}
+      ${layer('下游 · 集成/应用',allCells['下游'],3)}
+    </div>
+  </div>`;
+}
+
+function renderTimeline(){
+  // SVG 投资节奏曲线
+  const W=580,H=140,P={t:20,r:20,b:30,l:40};
+  const xs=W-P.l-P.r, ys=H-P.t-P.b;
+  const maxD=Math.max(...TIMELINE_DATA.map(d=>d.deals));
+  const maxI=Math.max(...TIMELINE_DATA.map(d=>d.inv));
+  const xStep=xs/(TIMELINE_DATA.length-1);
+  const path=TIMELINE_DATA.map((d,i)=>`${i?'L':'M'}${P.l+i*xStep},${P.t+ys-(d.inv/maxI)*ys}`).join(' ');
+  const area=`M${P.l},${P.t+ys} `+TIMELINE_DATA.map((d,i)=>`L${P.l+i*xStep},${P.t+ys-(d.inv/maxI)*ys}`).join(' ')+` L${P.l+(TIMELINE_DATA.length-1)*xStep},${P.t+ys}Z`;
+  return `<div class="panel">
+    <h3>投资节奏 · 2019-2025 <span class="tag">实际数据</span></h3>
+    <div class="timeline">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#B8860B" stop-opacity=".25"/>
+            <stop offset="100%" stop-color="#B8860B" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        ${[0,.25,.5,.75,1].map(t=>`<line x1="${P.l}" y1="${P.t+ys*t}" x2="${W-P.r}" y2="${P.t+ys*t}" stroke="#EEF0F3" stroke-width="1"/>`).join('')}
+        <path d="${area}" fill="url(#grad)"/>
+        <path d="${path}" fill="none" stroke="#B8860B" stroke-width="2"/>
+        ${TIMELINE_DATA.map((d,i)=>{
+          const cx=P.l+i*xStep, cy=P.t+ys-(d.inv/maxI)*ys;
+          const bh=(d.deals/maxD)*ys*.6;
+          return `<rect x="${cx-8}" y="${P.t+ys-bh}" width="16" height="${bh}" fill="#1A4D8C" opacity=".15"/>
+                  <circle cx="${cx}" cy="${cy}" r="3.5" fill="#fff" stroke="#B8860B" stroke-width="2"/>
+                  <text x="${cx}" y="${cy-8}" text-anchor="middle" font-size="9" fill="#0F1419" font-weight="600" font-family="SF Mono">${d.inv}</text>
+                  <text x="${cx}" y="${H-12}" text-anchor="middle" font-size="10" fill="#6B7480" font-family="SF Mono">${d.y}</text>`;
+        }).join('')}
+      </svg>
+      <div class="legend" style="justify-content:center;margin-top:4px">
+        <span><i style="background:#B8860B"></i>投资金额(亿)</span>
+        <span><i style="background:#1A4D8C;opacity:.3"></i>项目数</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderSubtrackCards(){
+  const t=TRACKS[currentTrack];
+  return `<div class="panel" style="background:transparent;border:none;padding:0">
+    <div class="sec-title">
+      <h2>二级赛道地图 · ${t.name}</h2>
+      <span class="desc">${t.subtracks.length}个细分领域 · 点击卡片查看详情</span>
+      <span class="src">数据口径: 公开披露 + 演示数据</span>
+    </div>
+    <div class="cards" id="cards">
+      ${t.subtracks.map(s=>{
+        const heatLab={hot:'热',warm:'温',cool:'冷'}[s.heat];
+        const investRatio=s.invested/(s.invested+s.target+1)*100;
+        return `<div class="card" data-sub="${s.id}">
+          <span class="arrow">→</span>
+          <div class="head">
+            <div>
+              <div class="name">${s.name}</div>
+              <div class="sub">${s.sub}</div>
+            </div>
+            <span class="heat h-${s.heat}">${heatLab}·${s.cagr}</span>
+          </div>
+          <div class="stats">
+            <div class="stat"><div class="v">${s.scale}</div><div class="l">市场规模 ${s.scaleYr}</div></div>
+            <div class="stat"><div class="v" style="color:var(--accent)">${s.invested}</div><div class="l">已投项目</div></div>
+            <div class="stat"><div class="v" style="color:var(--accent-2)">${s.target}</div><div class="l">嗅探标的</div></div>
+          </div>
+          <div class="meta">
+            <span>覆盖度 <b style="color:var(--ink-2);font-family:var(--mono)">${Math.round(investRatio)}%</b></span>
+            <span>缺口 <b style="color:${s.gap==='极高'||s.gap==='高'?'var(--up)':'var(--ink-2)'}">${s.gap}</b></span>
+          </div>
+          <div class="bar"><i style="width:${Math.min(investRatio*1.5,100)}%"></i></div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderCompetitionMatrix(){
+  const t=TRACKS[currentTrack];
+  const subs=activeSubs();
+  const titleSuffix=currentSub==='all'?`${t.name} 赛道`:`${subs[0].name}`;
+  const merged={};
+  subs.forEach(s=>(s.comps||[]).forEach(c=>{
+    if(!merged[c.n]||merged[c.n].r<c.r) merged[c.n]={...c};
+  }));
+  const arr=Object.values(merged);
+  return `<div class="panel">
+    <h3>CVC竞争格局 · ${titleSuffix}
+      <span class="tag demo">演示数据</span>
+      <span class="legend" style="margin-left:auto">
+        <span>气泡大小 = 出手活跃度</span>
+      </span>
+    </h3>
+    <div class="matrix">
+      <div class="axis-x"></div><div class="axis-y"></div>
+      <div class="lab lx">布局深度 →</div>
+      <div class="lab ly">↑ 投资强度</div>
+      <div class="lab lx0">浅</div>
+      <div class="lab ly0">弱</div>
+      <div class="quad-lab" style="left:12%;top:8%">守势 / 财务型</div>
+      <div class="quad-lab" style="right:6%;top:8%">领跑 / 战略型</div>
+      <div class="quad-lab" style="left:12%;bottom:14%">观望</div>
+      <div class="quad-lab" style="right:6%;bottom:14%">深耕</div>
+      ${arr.map(c=>{
+        const bg=c.n==='哈勃'?'#B8860B':(c.n.includes('小米')||c.n.includes('比亚迪')||c.n.includes('宁德')?'#1A4D8C':'#6B7480');
+        const left=4+c.x*0.92, top=8+(100-c.y)*0.78;
+        return `<div class="dot" style="left:${left}%;top:${top}%;width:${c.r*2}px;height:${c.r*2}px;background:${bg};font-size:${c.r>10?'10px':'0'}">${c.r>10?c.n.substring(0,2):''}<div class="nm">${c.n} · 活跃度${c.r}</div></div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderPipeline(){
+  const t=TRACKS[currentTrack];
+  const subs=activeSubs();
+  const titleSuffix=currentSub==='all'?t.name:subs[0].name;
+  const pool=[];
+  subs.forEach(s=>{
+    (s.targets||[]).forEach(tg=>pool.push({...tg,sub:s.name,subId:s.id}));
+  });
+  pool.sort((a,b)=>{const o={A:0,B:1,C:2,D:3};return o[a.score]-o[b.score]});
+  const limit=currentSub==='all'?18:pool.length;
+  return `<div class="panel">
+    <h3>项目储备池 · ${titleSuffix}
+      <span class="tag demo">演示数据</span>
+      <span class="legend" style="margin-left:auto">
+        <span><i style="background:var(--down)"></i>A级·重点跟进</span>
+        <span><i style="background:var(--accent-2)"></i>B级·持续观察</span>
+        <span><i style="background:var(--warn)"></i>C级·研究覆盖</span>
+      </span>
+    </h3>
+    <table class="tbl">
+      <thead><tr><th style="width:32px">#</th><th>标的代号</th>${currentSub==='all'?'<th>所属赛道</th>':''}<th>轮次</th><th>估值(±)</th><th>评级</th><th>推荐理由</th><th style="width:80px">操作</th></tr></thead>
+      <tbody>
+        ${pool.slice(0,limit).map((p,i)=>`<tr>
+          <td class="mono" style="color:var(--ink-3)">${String(i+1).padStart(2,'0')}</td>
+          <td><b>${p.n}</b></td>
+          ${currentSub==='all'?`<td><span class="pill pill-tag">${p.sub}</span></td>`:''}
+          <td class="mono">${p.rd}</td>
+          <td class="mono">${p.val}</td>
+          <td><span class="pill pill-${p.score}">${p.score}</span></td>
+          <td style="color:var(--ink-2)">${p.why}</td>
+          <td><button onclick="openDrawer('${p.subId}')" style="font-size:11px;color:var(--accent-2);font-weight:500">查看 →</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="font-size:11px;color:var(--ink-4);margin-top:10px">${currentSub==='all'?`显示前${limit}个 · 共 ${pool.length} 个储备标的`:`共 ${pool.length} 个储备标的`} · 排序：评级优先</div>
+  </div>`;
+}
+
+function renderInvested(){
+  const t=TRACKS[currentTrack];
+  const subs=activeSubs();
+  const titleSuffix=currentSub==='all'?t.name:subs[0].name;
+  const list=[];
+  subs.forEach(s=>(s.habo||[]).forEach(h=>list.push({...h,sub:s.name,subId:s.id})));
+  return `<div class="panel">
+    <h3>已投组合 · ${titleSuffix} <span class="tag">公开披露</span></h3>
+    ${list.length?`<table class="tbl">
+      <thead><tr><th style="width:32px">#</th><th>项目名称</th>${currentSub==='all'?'<th>所属赛道</th>':''}<th>投资年份</th><th>轮次</th><th>当前估值/市值</th><th>状态</th></tr></thead>
+      <tbody>
+        ${list.map((h,i)=>`<tr>
+          <td class="mono" style="color:var(--ink-3)">${String(i+1).padStart(2,'0')}</td>
+          <td><b>${h.n}</b></td>
+          ${currentSub==='all'?`<td><span class="pill pill-tag">${h.sub}</span></td>`:''}
+          <td class="mono">${h.y}</td>
+          <td class="mono">${h.rd}</td>
+          <td class="mono" style="color:var(--accent);font-weight:600">${h.val}</td>
+          <td style="font-size:11px;color:var(--ink-3)">${h.note}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`:`<div style="padding:24px;background:var(--bg-3);border-radius:4px;color:var(--ink-3);font-size:12px;text-align:center">该细分赛道尚无已投项目 · 研究覆盖中</div>`}
+  </div>`;
+}
+
+function renderFocusRisks(s){
+  return `<div class="panel">
+    <h3>风险提示 · ${s.name} <span class="tag">分析师视角</span></h3>
+    <ul class="risk-list" style="margin:4px 0 4px 4px">
+      ${s.risks.map(r=>`<li>${r}</li>`).join('')}
+    </ul>
+  </div>`;
+}
+
+function renderAll(){
+  const t=TRACKS[currentTrack];
+  const isFocus=currentSub!=='all';
+  const focusSub=isFocus?t.subtracks.find(x=>x.id===currentSub):null;
+  
+  main.innerHTML=`
+    ${renderKPI()}
+    <div style="display:flex;align-items:center;gap:12px;margin:8px 0 4px">
+      ${renderTabs()}
+      <div style="font-size:12px;color:var(--ink-3);max-width:680px;line-height:1.6">${t.overview}</div>
+    </div>
+    ${renderSubTabs()}
+    ${isFocus?renderFocusHead(focusSub):''}
+    <div class="grid-2">
+      ${renderChainOverview()}
+      ${isFocus?renderFocusRisks(focusSub):renderTimeline()}
+    </div>
+    ${isFocus?'':renderSubtrackCards()}
+    <div class="sec-title"><h2>${isFocus?'战略视角 · '+focusSub.name:'战略视角 · '+t.name}</h2><span class="desc">${isFocus?'该赛道竞争格局 + 项目储备 + 已投组合':'竞争格局 + 项目储备 + 已投组合'}</span></div>
+    <div class="grid-2">
+      ${renderCompetitionMatrix()}
+      ${renderInvested()}
+    </div>
+    <div style="margin-top:12px">${renderPipeline()}</div>
+    <div class="foot">
+      <b>数据口径</b>　哈勃已投项目数据来源于公开披露（上市公司公告、IT桔子、CV Source、企查查），数据截止 2026-05；嗅探标的池、CVC竞争格局、市场规模为<b>演示数据</b>，用于示意作战地图框架，实际投资决策需 IC 流程独立尽调。<br>
+      <b>评级口径</b>　A=重点跟进(已建立联系/有定点订单)，B=持续观察(技术验证中)，C=研究覆盖(早期/政策驱动)，D=不进入。<br>
+      <b>免责</b>　本作战地图仅作内部决策辅助，不构成任何投资建议；估值数据存在时滞，以最新公告为准。
+    </div>
+  `;
+  // 一级tab：切换主赛道时重置二级为全景
+  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{currentTrack=b.dataset.t;currentSub='all';renderAll()});
+  // 二级tab
+  document.querySelectorAll('#subtabs button').forEach(b=>b.onclick=()=>{currentSub=b.dataset.s;renderAll();window.scrollTo({top:0,behavior:'smooth'})});
+  // 卡片点击 → 切换二级Tab而不是开drawer (作战地图模式下保留drawer)
+  document.querySelectorAll('#cards .card').forEach(c=>c.onclick=()=>{currentSub=c.dataset.sub;renderAll();window.scrollTo({top:0,behavior:'smooth'})});
+  // 产业链节点点击：在聚焦视图下打开drawer看更多详情；在全景视图下切换聚焦
+  document.querySelectorAll('.cell[data-sub]').forEach(c=>c.onclick=()=>{
+    if(currentSub==='all'){currentSub=c.dataset.sub;renderAll();window.scrollTo({top:0,behavior:'smooth'})}
+    else{openDrawer(c.dataset.sub)}
+  });
+}
+
+/* === DRAWER === */
+function openDrawer(subId){
+  const t=TRACKS[currentTrack];
+  const s=t.subtracks.find(x=>x.id===subId);
+  if(!s)return;
+  $('#dIc').textContent=s.name.substring(0,2);
+  $('#dTitle').textContent=`${s.name} · ${s.sub}`;
+  $('#dOne').textContent=s.def;
+  
+  const heatLab={hot:'热度·热',warm:'热度·温',cool:'热度·冷'}[s.heat];
+  const heatColor={hot:'var(--up)',warm:'var(--warn)',cool:'var(--accent-2)'}[s.heat];
+  
+  $('#dBody').innerHTML=`
+    <section>
+      <h4>核心定义 <span class="src">规模数据 · ${s.scaleYr}</span></h4>
+      <div class="def">${s.def}</div>
+      <div class="kv">
+        <div class="it"><div class="l">市场规模</div><div class="v">${s.scale}</div></div>
+        <div class="it"><div class="l">CAGR</div><div class="v" style="color:${heatColor}">${s.cagr}</div></div>
+        <div class="it"><div class="l">热度</div><div class="v" style="color:${heatColor}">${heatLab}</div></div>
+        <div class="it"><div class="l">国产化缺口</div><div class="v" style="color:${s.gap==='极高'||s.gap==='高'?'var(--up)':'var(--ink)'}">${s.gap}</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h4>产业链卡位 <span class="src">三层结构</span></h4>
+      <div class="mini-chain">
+        ${s.chain.map(c=>`<div class="seg"><div class="t">${c.t}</div><div class="c">${c.c}</div></div>`).join('')}
+      </div>
+    </section>
+
+    <section>
+      <h4>已投项目 <span class="src">公开披露 · 共${s.habo.length}个</span></h4>
+      ${s.habo.length?`<table class="tbl">
+        <thead><tr><th>公司</th><th>年份</th><th>轮次</th><th>估值</th><th>状态</th></tr></thead>
+        <tbody>${s.habo.map(h=>`<tr><td><b>${h.n}</b></td><td class="mono">${h.y}</td><td class="mono">${h.rd}</td><td class="mono" style="color:var(--accent);font-weight:600">${h.val}</td><td style="color:var(--ink-3);font-size:11px">${h.note}</td></tr>`).join('')}</tbody>
+      </table>`:`<div style="padding:14px;background:var(--bg-3);border-radius:4px;color:var(--ink-3);font-size:12px;text-align:center">尚无已投项目 · 研究覆盖中</div>`}
+    </section>
+
+    <section>
+      <h4>嗅探标的池 <span class="src"><span class="demo-tag">演示数据</span> · 共${s.targets.length}个</span></h4>
+      <table class="tbl">
+        <thead><tr><th>标的代号</th><th>轮次</th><th>估值</th><th>评级</th><th>推荐理由</th></tr></thead>
+        <tbody>${s.targets.map(t=>`<tr><td><b>${t.n}</b></td><td class="mono">${t.rd}</td><td class="mono">${t.val}</td><td><span class="pill pill-${t.score}">${t.score}</span></td><td style="color:var(--ink-2);font-size:12px">${t.why}</td></tr>`).join('')}</tbody>
+      </table>
+    </section>
+
+    <section>
+      <h4>风险提示</h4>
+      <ul class="risk-list">
+        ${s.risks.map(r=>`<li>${r}</li>`).join('')}
+      </ul>
+    </section>
+
+    <section style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--line)">
+      <button style="flex:1;padding:10px;background:var(--ink);color:#fff;border-radius:4px;font-weight:500">加入立项池</button>
+      <button style="flex:1;padding:10px;background:var(--bg-3);border:1px solid var(--line);border-radius:4px;color:var(--ink-2);font-weight:500">导出研究简报</button>
+      <button style="padding:10px 16px;background:var(--bg-3);border:1px solid var(--line);border-radius:4px;color:var(--ink-2)">订阅动态</button>
+    </section>
+  `;
+  
+  $('#mask').classList.add('on');
+  $('#drawer').classList.add('on');
+}
+function closeDrawer(){
+  $('#mask').classList.remove('on');
+  $('#drawer').classList.remove('on');
+}
+$('#mask').onclick=closeDrawer;
+$('#dClose').onclick=closeDrawer;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
+
+renderAll();
+</script>
+</body>
+</html>
